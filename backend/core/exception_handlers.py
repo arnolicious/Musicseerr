@@ -1,0 +1,95 @@
+import logging
+from fastapi import Request, HTTPException, status
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.responses import Response
+
+from core.exceptions import (
+    ResourceNotFoundError,
+    ExternalServiceError,
+    SourceResolutionError,
+    ValidationError,
+    ConfigurationError,
+    ClientDisconnectedError,
+)
+from infrastructure.msgspec_fastapi import MsgSpecJSONResponse
+from infrastructure.resilience.retry import CircuitOpenError
+from models.error import (
+    error_response,
+    VALIDATION_ERROR,
+    NOT_FOUND,
+    EXTERNAL_SERVICE_UNAVAILABLE,
+    SERVICE_UNAVAILABLE,
+    CONFIGURATION_ERROR,
+    SOURCE_RESOLUTION_ERROR,
+    INTERNAL_ERROR,
+    STATUS_TO_CODE,
+)
+
+logger = logging.getLogger(__name__)
+
+
+async def resource_not_found_handler(request: Request, exc: ResourceNotFoundError) -> MsgSpecJSONResponse:
+    logger.warning("Resource not found: %s - %s %s", exc, request.method, request.url.path)
+    return error_response(status.HTTP_404_NOT_FOUND, NOT_FOUND, str(exc))
+
+
+async def external_service_error_handler(request: Request, exc: ExternalServiceError) -> MsgSpecJSONResponse:
+    logger.error("External service error: %s - %s %s", exc, request.method, request.url.path)
+    return error_response(status.HTTP_503_SERVICE_UNAVAILABLE, EXTERNAL_SERVICE_UNAVAILABLE, "External service unavailable")
+
+
+async def circuit_open_error_handler(request: Request, exc: CircuitOpenError) -> MsgSpecJSONResponse:
+    logger.error("Circuit breaker open: %s - %s %s", exc, request.method, request.url.path)
+    return error_response(status.HTTP_503_SERVICE_UNAVAILABLE, SERVICE_UNAVAILABLE, "Service temporarily unavailable")
+
+
+async def validation_error_handler(request: Request, exc: ValidationError) -> MsgSpecJSONResponse:
+    logger.warning("Validation error: %s - %s %s", exc, request.method, request.url.path)
+    return error_response(status.HTTP_400_BAD_REQUEST, VALIDATION_ERROR, str(exc))
+
+
+async def configuration_error_handler(request: Request, exc: ConfigurationError) -> MsgSpecJSONResponse:
+    logger.warning("Configuration error: %s - %s %s", exc, request.method, request.url.path)
+    return error_response(status.HTTP_400_BAD_REQUEST, CONFIGURATION_ERROR, str(exc))
+
+
+async def source_resolution_error_handler(request: Request, exc: SourceResolutionError) -> MsgSpecJSONResponse:
+    logger.warning("Source resolution error: %s - %s %s", exc, request.method, request.url.path)
+    return error_response(status.HTTP_422_UNPROCESSABLE_ENTITY, SOURCE_RESOLUTION_ERROR, str(exc))
+
+
+async def general_exception_handler(request: Request, exc: Exception) -> MsgSpecJSONResponse:
+    logger.exception("Unexpected error: %s - %s %s", exc, request.method, request.url.path)
+    return error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, INTERNAL_ERROR, "Internal server error")
+
+
+async def http_exception_handler(request: Request, exc: HTTPException) -> MsgSpecJSONResponse:
+    code = STATUS_TO_CODE.get(exc.status_code, INTERNAL_ERROR)
+    message = exc.detail if isinstance(exc.detail, str) else "Request failed"
+    return error_response(exc.status_code, code, message)
+
+
+async def starlette_http_exception_handler(request: Request, exc: StarletteHTTPException) -> MsgSpecJSONResponse:
+    code = STATUS_TO_CODE.get(exc.status_code, INTERNAL_ERROR)
+    message = exc.detail if isinstance(exc.detail, str) else "Request failed"
+    return error_response(exc.status_code, code, message)
+
+
+async def request_validation_error_handler(request: Request, exc: RequestValidationError) -> MsgSpecJSONResponse:
+    logger.warning("Request validation error: %s %s", request.method, request.url.path)
+    clean_errors = [
+        {k: v for k, v in err.items() if k != "ctx"}
+        for err in exc.errors()
+    ]
+    return error_response(
+        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        VALIDATION_ERROR,
+        "Validation failed",
+        details=clean_errors,
+    )
+
+
+async def client_disconnected_handler(request: Request, exc: ClientDisconnectedError) -> Response:
+    logger.debug("Client disconnected: %s %s", request.method, request.url.path)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

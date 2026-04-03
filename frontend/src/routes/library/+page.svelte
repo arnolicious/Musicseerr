@@ -1,0 +1,442 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
+	import ArtistCard from '$lib/components/ArtistCard.svelte';
+	import AlbumCard from '$lib/components/AlbumCard.svelte';
+	import ArtistCardSkeleton from '$lib/components/ArtistCardSkeleton.svelte';
+	import AlbumCardSkeleton from '$lib/components/AlbumCardSkeleton.svelte';
+	import HorizontalCarousel from '$lib/components/HorizontalCarousel.svelte';
+	import Pagination from '$lib/components/Pagination.svelte';
+	import { recentlyAddedStore } from '$lib/stores/recentlyAdded';
+	import { syncStatus } from '$lib/stores/syncStatus.svelte';
+	import { api } from '$lib/api/client';
+	import { API } from '$lib/constants';
+	import { isAbortError } from '$lib/utils/errorHandling';
+	import type { Artist, Album } from '$lib/types';
+	import { CircleX, X, RefreshCw, ChevronRight, Search, Loader2 } from 'lucide-svelte';
+
+	type LibraryArtist = {
+		name: string;
+		mbid: string;
+		album_count: number;
+		date_added: string | null;
+	};
+
+	type LibraryAlbum = {
+		album: string;
+		artist: string;
+		artist_mbid: string | null;
+		foreignAlbumId: string | null;
+		year: number | null;
+		monitored: boolean;
+		cover_url: string | null;
+		date_added: number | null;
+	};
+
+	type PaginatedAlbumsResponse = {
+		albums: LibraryAlbum[];
+		total: number;
+		offset: number;
+		limit: number;
+	};
+
+	type PaginatedArtistsResponse = {
+		artists: LibraryArtist[];
+		total: number;
+		offset: number;
+		limit: number;
+	};
+
+	type LibraryStats = {
+		artist_count: number;
+		album_count: number;
+		last_sync: number | null;
+		db_size_mb: number;
+	};
+
+	const ALBUMS_PER_PAGE = 50;
+	const ARTIST_CAROUSEL_LIMIT = 50;
+	const SEARCH_DEBOUNCE_MS = 300;
+
+	let albums: LibraryAlbum[] = [];
+	let albumsTotal = 0;
+	let artists: LibraryArtist[] = [];
+	let stats: LibraryStats = { artist_count: 0, album_count: 0, last_sync: null, db_size_mb: 0 };
+
+	let loadingArtists = true;
+	let loadingAlbums = true;
+	let loadingStats = true;
+	let syncing = false;
+	let error: string | null = null;
+
+	let currentAlbumPage = 1;
+	let sortBy = 'date_added';
+	let sortOrder = 'desc';
+	let searchQuery = '';
+	let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+	let albumsFetchId = 0;
+	let albumsAbort: AbortController | null = null;
+
+	$: recentlyAdded = $recentlyAddedStore.data ?? { artists: [], albums: [] };
+	$: loadingRecentlyAdded = $recentlyAddedStore.loading && !$recentlyAddedStore.data;
+	$: isSearching = searchQuery.trim().length > 0;
+	$: totalAlbumPages = Math.ceil(albumsTotal / ALBUMS_PER_PAGE);
+	$: lastSyncText = stats.last_sync ? new Date(stats.last_sync * 1000).toLocaleString() : 'Never';
+
+	onMount(() => {
+		recentlyAddedStore.initialize();
+		loadArtists();
+		fetchAlbums();
+		loadStats();
+	});
+
+	async function loadArtists() {
+		try {
+			const url = API.library.artists(ARTIST_CAROUSEL_LIMIT, 0, 'name', 'asc');
+			const data = await api.get<PaginatedArtistsResponse>(url);
+			artists = data.artists;
+		} catch (e) {
+			if (isAbortError(e)) return;
+			console.error("Couldn't load artists:", e);
+		} finally {
+			loadingArtists = false;
+		}
+	}
+
+	async function fetchAlbums() {
+		const id = ++albumsFetchId;
+		albumsAbort?.abort();
+		albumsAbort = new AbortController();
+		loadingAlbums = true;
+		try {
+			const offset = (currentAlbumPage - 1) * ALBUMS_PER_PAGE;
+			const q = searchQuery.trim() || undefined;
+			const url = API.library.albums(ALBUMS_PER_PAGE, offset, sortBy, sortOrder, q);
+			const data = await api.get<PaginatedAlbumsResponse>(url, { signal: albumsAbort.signal });
+			if (id !== albumsFetchId) return;
+			albums = data.albums;
+			albumsTotal = data.total;
+		} catch (e) {
+			if (isAbortError(e)) return;
+			if (id !== albumsFetchId) return;
+			console.error("Couldn't load albums:", e);
+			error = "Couldn't load albums";
+		} finally {
+			if (id === albumsFetchId) loadingAlbums = false;
+		}
+	}
+
+	async function loadStats() {
+		try {
+			stats = await api.get<LibraryStats>('/api/v1/library/stats');
+		} catch (e) {
+			if (isAbortError(e)) return;
+			console.error('Failed to load stats:', e);
+		} finally {
+			loadingStats = false;
+		}
+	}
+
+	async function loadLibrary() {
+		error = null;
+		loadingArtists = true;
+		loadingStats = true;
+		currentAlbumPage = 1;
+		try {
+			await Promise.all([recentlyAddedStore.refresh(), loadArtists(), fetchAlbums(), loadStats()]);
+		} finally {
+			loadingStats = false;
+		}
+	}
+
+	async function syncLibrary() {
+		syncing = true;
+		error = null;
+		try {
+			await api.global.post('/api/v1/library/sync');
+			syncStatus.checkStatus();
+			await loadLibrary();
+		} catch (e) {
+			console.error('Sync failed:', e);
+			error = e instanceof Error ? e.message : "Couldn't sync the library";
+		} finally {
+			syncing = false;
+		}
+	}
+
+	function handleSearchInput(): void {
+		if (searchTimeout) clearTimeout(searchTimeout);
+		searchTimeout = setTimeout(() => {
+			currentAlbumPage = 1;
+			fetchAlbums();
+		}, SEARCH_DEBOUNCE_MS);
+	}
+
+	function clearSearch(): void {
+		searchQuery = '';
+		if (searchTimeout) clearTimeout(searchTimeout);
+		currentAlbumPage = 1;
+		fetchAlbums();
+	}
+
+	function handlePageChange(page: number): void {
+		currentAlbumPage = page;
+		fetchAlbums();
+	}
+
+	function handleSortChange(event: Event): void {
+		const value = (event.target as HTMLSelectElement).value;
+		const [newSortBy, newSortOrder] = value.split(':');
+		sortBy = newSortBy;
+		sortOrder = newSortOrder;
+		currentAlbumPage = 1;
+		fetchAlbums();
+	}
+
+	function convertToArtist(libArtist: LibraryArtist): Artist {
+		return { title: libArtist.name, musicbrainz_id: libArtist.mbid, in_library: true };
+	}
+
+	function convertToAlbum(libAlbum: LibraryAlbum): Album {
+		return {
+			title: libAlbum.album,
+			artist: libAlbum.artist,
+			year: libAlbum.year,
+			musicbrainz_id: libAlbum.foreignAlbumId || '',
+			in_library: true,
+			cover_url: libAlbum.cover_url
+		};
+	}
+</script>
+
+<div class="container mx-auto p-4 md:p-6 lg:p-8">
+	{#if error}
+		<div class="alert alert-error mb-6">
+			<CircleX class="h-6 w-6 shrink-0" />
+			<span>{error}</span>
+			<div class="flex gap-2">
+				<button
+					class="btn btn-sm"
+					onclick={() => {
+						error = null;
+						loadLibrary();
+					}}>Retry</button
+				>
+				<button
+					class="btn btn-sm btn-circle btn-ghost"
+					onclick={() => (error = null)}
+					aria-label="Dismiss"
+				>
+					<X class="h-4 w-4" />
+				</button>
+			</div>
+		</div>
+	{/if}
+
+	<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+		<div>
+			<h1 class="text-3xl font-bold">Library</h1>
+			<p class="text-base-content/70 text-sm mt-1">
+				{#if loadingStats}
+					<span class="skeleton h-4 w-64 inline-block"></span>
+				{:else}
+					{stats.artist_count} artists • {stats.album_count} albums • Last sync: {lastSyncText}
+				{/if}
+			</p>
+		</div>
+		<button
+			class="btn btn-sm btn-primary gap-1"
+			onclick={syncLibrary}
+			disabled={syncing || syncStatus.isActive}
+		>
+			{#if syncing || syncStatus.isActive}
+				<Loader2 class="h-4 w-4 animate-spin" />
+				<span class="hidden sm:inline">Syncing...</span>
+			{:else}
+				<RefreshCw class="h-4 w-4" />
+				<span class="hidden sm:inline">Sync Library</span>
+			{/if}
+		</button>
+	</div>
+
+	{#if !isSearching}
+		<section class="mb-8">
+			<h2 class="text-2xl font-semibold mb-4">Recently Added</h2>
+			{#if loadingRecentlyAdded}
+				<div class="flex gap-4 p-4 bg-base-200 rounded-box overflow-x-auto scrollbar-hide">
+					{#each Array(6) as _}<div class="w-48 flex-shrink-0"><AlbumCardSkeleton /></div>{/each}
+				</div>
+			{:else if recentlyAdded.artists.length > 0 || recentlyAdded.albums.length > 0}
+				<div in:fade={{ duration: 300 }}>
+					<HorizontalCarousel class="p-4 bg-base-200 rounded-box">
+						{#each recentlyAdded.artists as artist}
+							<div class="w-48 flex-shrink-0"><ArtistCard artist={convertToArtist(artist)} /></div>
+						{/each}
+						{#each recentlyAdded.albums as album}
+							<div class="w-48 flex-shrink-0"><AlbumCard album={convertToAlbum(album)} /></div>
+						{/each}
+					</HorizontalCarousel>
+				</div>
+			{:else}
+				<div class="p-8 bg-base-200 rounded-box text-center text-base-content/50">
+					<p>No recently added items</p>
+				</div>
+			{/if}
+		</section>
+	{/if}
+
+	<div class="mb-6 flex flex-col sm:flex-row gap-3">
+		<div class="relative group flex-1">
+			<Search
+				class="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-base-content/40
+				group-focus-within:text-primary transition-colors duration-200 pointer-events-none"
+			/>
+			<input
+				type="text"
+				placeholder="Search albums..."
+				class="input input-lg w-full rounded-full pl-11 pr-12
+					bg-base-200/50 border-base-content/10
+					focus:border-primary focus:bg-base-200/80
+					transition-all duration-200
+					placeholder:text-base-content/30"
+				bind:value={searchQuery}
+				oninput={handleSearchInput}
+				aria-label="Search library"
+			/>
+			{#if isSearching}
+				<button
+					class="absolute right-3 top-1/2 -translate-y-1/2 btn btn-sm btn-ghost btn-circle"
+					onclick={clearSearch}
+					aria-label="Clear search"
+				>
+					<X class="h-4 w-4" />
+				</button>
+			{/if}
+		</div>
+		<select
+			class="select select-bordered rounded-full"
+			value="{sortBy}:{sortOrder}"
+			onchange={handleSortChange}
+			aria-label="Sort albums"
+		>
+			<option value="date_added:desc">Newest First</option>
+			<option value="date_added:asc">Oldest First</option>
+			<option value="title:asc">Title A–Z</option>
+			<option value="title:desc">Title Z–A</option>
+			<option value="artist:asc">Artist A–Z</option>
+			<option value="artist:desc">Artist Z–A</option>
+			<option value="year:desc">Year (Newest)</option>
+			<option value="year:asc">Year (Oldest)</option>
+		</select>
+	</div>
+	{#if isSearching && !loadingAlbums}
+		<p class="text-sm text-base-content/50 mb-4 ml-4">
+			{albumsTotal} {albumsTotal === 1 ? 'album' : 'albums'} found
+		</p>
+	{/if}
+
+	{#if !isSearching}
+		<section class="mb-8">
+			<div class="flex justify-between items-center mb-4">
+				<a
+					href="/library/artists"
+					class="flex items-center gap-2 hover:text-primary transition-colors group"
+				>
+					<h2 class="text-2xl font-semibold">Artists</h2>
+					<ChevronRight class="w-5 h-5 transition-transform group-hover:translate-x-1" />
+				</a>
+			</div>
+			{#if loadingArtists}
+				<div class="flex gap-4 overflow-x-auto scrollbar-hide pb-2">
+					{#each Array(8) as _}<div class="w-32 sm:w-36 md:w-44 flex-shrink-0">
+							<ArtistCardSkeleton />
+						</div>{/each}
+				</div>
+			{:else if artists.length > 0}
+				<div in:fade={{ duration: 300 }}>
+					<HorizontalCarousel class="pb-2">
+						{#each artists as artist (artist.mbid)}
+							<div class="w-32 sm:w-36 md:w-44 flex-shrink-0">
+								<ArtistCard artist={convertToArtist(artist)} />
+							</div>
+						{/each}
+					</HorizontalCarousel>
+				</div>
+			{:else}
+				<div class="p-8 bg-base-200 rounded-box text-center text-base-content/50">
+					<p>No artists in library</p>
+				</div>
+			{/if}
+		</section>
+	{/if}
+
+	<section>
+		<div class="flex justify-between items-center mb-4">
+			<a
+				href="/library/albums"
+				class="flex items-center gap-2 hover:text-primary transition-colors group"
+			>
+				<h2 class="text-2xl font-semibold">Albums</h2>
+				<ChevronRight class="w-5 h-5 transition-transform group-hover:translate-x-1" />
+			</a>
+			{#if !loadingAlbums && totalAlbumPages > 1}
+				<Pagination
+					current={currentAlbumPage}
+					total={totalAlbumPages}
+					onchange={handlePageChange}
+				/>
+			{/if}
+		</div>
+		{#if loadingAlbums}
+			<div
+				class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
+			>
+				{#each Array(12) as _}<AlbumCardSkeleton />{/each}
+			</div>
+		{:else if albums.length > 0}
+			<div
+				class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
+				in:fade={{ duration: 300 }}
+			>
+				{#each albums as album, index (album.foreignAlbumId || `${album.album}-${album.artist}-${index}`)}
+					<AlbumCard album={convertToAlbum(album)} />
+				{/each}
+			</div>
+			{#if totalAlbumPages > 1}
+				<div class="flex justify-center mt-6">
+					<Pagination
+						current={currentAlbumPage}
+						total={totalAlbumPages}
+						onchange={handlePageChange}
+					/>
+				</div>
+			{/if}
+		{:else}
+			<div class="p-8 bg-base-200 rounded-box text-center text-base-content/50">
+				<p>{isSearching ? 'No matching albums' : 'No albums in library'}</p>
+			</div>
+		{/if}
+	</section>
+
+	{#if !isSearching && !loadingArtists && !loadingAlbums && artists.length === 0 && albums.length === 0}
+		<div class="flex flex-col items-center justify-center min-h-[200px] text-center mt-8">
+			<div class="text-6xl mb-4">📚</div>
+			<h2 class="text-2xl font-semibold mb-2">No items in library</h2>
+			<p class="text-base-content/70 mb-4">
+				Your Lidarr library is empty or hasn't been synced yet.
+			</p>
+			<button
+				class="btn btn-primary gap-2"
+				onclick={syncLibrary}
+				disabled={syncing || syncStatus.isActive}
+			>
+				{#if syncing || syncStatus.isActive}
+					<Loader2 class="h-4 w-4 animate-spin" />
+					Syncing...
+				{:else}
+					Sync Now
+				{/if}
+			</button>
+		</div>
+	{/if}
+</div>

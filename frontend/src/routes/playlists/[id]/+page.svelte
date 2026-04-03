@@ -1,0 +1,295 @@
+<script lang="ts">
+	import { goto } from '$app/navigation';
+	import { onDestroy, untrack } from 'svelte';
+	import { deletePlaylist, fetchPlaylist, resolvePlaylistSources, type PlaylistDetail } from '$lib/api/playlists';
+	import { playlistTrackToQueueItem } from '$lib/player/queueHelpers';
+	import { playerStore } from '$lib/stores/player.svelte';
+	import { toastStore } from '$lib/stores/toast';
+	import { getCacheTTL } from '$lib/stores/cacheTtl';
+	import { extractDominantColor, DEFAULT_GRADIENT } from '$lib/utils/colors';
+	import { Music } from 'lucide-svelte';
+	import BackButton from '$lib/components/BackButton.svelte';
+	import HeroBackdrop from '$lib/components/HeroBackdrop.svelte';
+	import type { PageData } from './$types';
+	import PlaylistHeader from './PlaylistHeader.svelte';
+	import PlaylistTrackList from './PlaylistTrackList.svelte';
+	import DeletePlaylistModal from './DeletePlaylistModal.svelte';
+
+	let { data }: { data: PageData } = $props();
+
+	let playlist = $state<PlaylistDetail | null>(null);
+	let loading = $state(true);
+	let loadError = $state<string | null>(null);
+	let activeLoadToken = 0;
+	let deleting = $state(false);
+
+	let deleteModal = $state<ReturnType<typeof DeletePlaylistModal> | null>(null);
+	let trackList = $state<ReturnType<typeof PlaylistTrackList> | null>(null);
+	let header = $state<ReturnType<typeof PlaylistHeader> | null>(null);
+
+	const SOURCES_CACHE_PREFIX = 'musicseerr_playlist_sources_';
+
+	function getSourcesFromCache(playlistId: string): Record<string, string[]> | null {
+		try {
+			const raw = localStorage.getItem(SOURCES_CACHE_PREFIX + playlistId);
+			if (!raw) return null;
+			const cached = JSON.parse(raw) as { ts: number; data: Record<string, string[]> };
+			const ttl = getCacheTTL('playlistSources');
+			if (Date.now() - cached.ts > ttl) {
+				localStorage.removeItem(SOURCES_CACHE_PREFIX + playlistId);
+				return null;
+			}
+			return cached.data;
+		} catch {
+			return null;
+		}
+	}
+
+	function setSourcesCache(playlistId: string, data: Record<string, string[]>) {
+		try {
+			localStorage.setItem(
+				SOURCES_CACHE_PREFIX + playlistId,
+				JSON.stringify({ ts: Date.now(), data })
+			);
+		} catch { /* storage full — non-critical */ }
+	}
+
+	function invalidateSourcesCache(playlistId: string) {
+		try {
+			localStorage.removeItem(SOURCES_CACHE_PREFIX + playlistId);
+		} catch { /* ignore */ }
+	}
+
+	function applySourcesMap(sources: Record<string, string[]>) {
+		if (!playlist) return;
+		for (const track of playlist.tracks) {
+			const resolved = sources[track.id];
+			if (resolved && resolved.length > 0) {
+				track.available_sources = resolved;
+			}
+		}
+	}
+
+	async function resolveAndCacheSources(playlistId: string) {
+		const cached = getSourcesFromCache(playlistId);
+		if (cached) {
+			applySourcesMap(cached);
+			return;
+		}
+		try {
+			const sources = await resolvePlaylistSources(playlistId);
+			if (playlist && playlist.id === playlistId) {
+				applySourcesMap(sources);
+				setSourcesCache(playlistId, sources);
+			}
+		} catch {
+			// non-critical — tracks keep their stored available_sources
+		}
+	}
+
+	async function loadPlaylist(playlistId: string) {
+		const token = ++activeLoadToken;
+		loading = true;
+		loadError = null;
+		playlist = null;
+		trackList?.clearReorderState();
+		header?.cleanupPreview();
+
+		try {
+			const loaded = await fetchPlaylist(playlistId);
+			if (token !== activeLoadToken) return;
+			playlist = loaded ?? null;
+			if (!playlist) {
+				loadError = "Couldn't load this playlist";
+			} else {
+				void resolveAndCacheSources(playlistId);
+			}
+		} catch (e) {
+			if (token !== activeLoadToken) return;
+			if (e instanceof Error && /404|not found/i.test(e.message)) {
+				loadError = 'Playlist not found';
+			} else {
+				loadError = "Couldn't load this playlist";
+			}
+		} finally {
+			if (token === activeLoadToken) {
+				loading = false;
+			}
+		}
+	}
+
+	$effect(() => {
+		const playlistId = data.playlistId;
+		untrack(() => {
+			void loadPlaylist(playlistId);
+		});
+	});
+
+	function playAll() {
+		if (!playlist || playlist.tracks.length === 0) return;
+		const items = playlist.tracks
+			.map(playlistTrackToQueueItem)
+			.filter((item): item is NonNullable<typeof item> => item !== null);
+		if (items.length === 0) {
+			toastStore.show({ message: 'Nothing here can be played right now', type: 'info' });
+			return;
+		}
+		playerStore.playQueue(items, 0, false);
+	}
+
+	function shuffleAll() {
+		if (!playlist || playlist.tracks.length < 2) return;
+		const items = playlist.tracks
+			.map(playlistTrackToQueueItem)
+			.filter((item): item is NonNullable<typeof item> => item !== null);
+		if (items.length === 0) {
+			toastStore.show({ message: 'Nothing here can be played right now', type: 'info' });
+			return;
+		}
+		playerStore.playQueue(items, 0, true);
+	}
+
+	function playFromTrack(index: number) {
+		if (!playlist || playlist.tracks.length === 0) return;
+		const items = playlist.tracks
+			.map(playlistTrackToQueueItem)
+			.filter((item): item is NonNullable<typeof item> => item !== null);
+		if (items.length === 0) {
+			toastStore.show({ message: 'Nothing here can be played right now', type: 'info' });
+			return;
+		}
+		const startIndex = Math.min(index, items.length - 1);
+		playerStore.playQueue(items, startIndex, false);
+	}
+
+	function handleSourceChange() {
+		if (playlist) invalidateSourcesCache(playlist.id);
+	}
+
+	function handlePlaylistUpdate(updatedPlaylist: PlaylistDetail) {
+		playlist = updatedPlaylist;
+	}
+
+	async function confirmDelete() {
+		if (!playlist || deleting) return;
+		deleting = true;
+		try {
+			await deletePlaylist(playlist.id);
+			toastStore.show({ message: 'Playlist deleted', type: 'success' });
+			await goto('/playlists');
+		} catch {
+			toastStore.show({ message: "Couldn't delete the playlist", type: 'error' });
+		} finally {
+			deleting = false;
+		}
+	}
+
+	let heroGradient = $state(DEFAULT_GRADIENT);
+
+	let heroBgUrl = $derived.by(() => {
+		if (!playlist) return null;
+		if (playlist.custom_cover_url) return playlist.custom_cover_url;
+		if (playlist.cover_urls.length > 0) return playlist.cover_urls[0];
+		return null;
+	});
+
+	$effect(() => {
+		const url = heroBgUrl;
+		if (url) {
+			extractDominantColor(url).then((gradient) => (heroGradient = gradient));
+		} else {
+			heroGradient = DEFAULT_GRADIENT;
+		}
+	});
+
+	onDestroy(() => {
+		activeLoadToken += 1;
+		trackList?.clearReorderState();
+		header?.cleanupPreview();
+	});
+</script>
+
+<svelte:head>
+	<title>{playlist?.name ?? 'Playlist'} - Musicseerr</title>
+</svelte:head>
+
+<div class="w-full px-2 sm:px-4 lg:px-8 py-4 sm:py-8 max-w-7xl mx-auto">
+{#if loading}
+	<div class="space-y-6 sm:space-y-8">
+		<div class="skeleton h-10 w-10 rounded-full"></div>
+		<div class="flex flex-col lg:flex-row gap-6 lg:gap-8">
+			<div class="skeleton w-full lg:w-64 xl:w-80 aspect-square rounded-box flex-shrink-0"></div>
+			<div class="flex-1 flex flex-col justify-end space-y-4">
+				<div class="skeleton h-4 w-20"></div>
+				<div class="skeleton h-12 w-3/4"></div>
+				<div class="skeleton h-6 w-1/2"></div>
+				<div class="flex gap-4 mt-6">
+					<div class="skeleton h-12 w-32"></div>
+					<div class="skeleton h-12 w-32"></div>
+				</div>
+			</div>
+		</div>
+		<div class="space-y-2">
+			{#each Array(4) as _}
+				<div class="skeleton h-14 w-full"></div>
+			{/each}
+		</div>
+	</div>
+{:else if loadError}
+	<div class="flex flex-col items-center justify-center py-20 gap-4 text-center">
+		<Music class="h-16 w-16 text-base-content/20" />
+		<h2 class="text-lg font-semibold text-base-content/80">Couldn't load this playlist</h2>
+		<p class="text-sm text-base-content/60">{loadError}</p>
+		<div class="flex items-center gap-2">
+			<button class="btn btn-sm btn-accent" onclick={() => void loadPlaylist(data.playlistId)}>
+				Retry
+			</button>
+			<BackButton fallback="/playlists" />
+		</div>
+	</div>
+{:else if !playlist}
+	<div class="flex flex-col items-center justify-center py-20 gap-4">
+		<Music class="h-16 w-16 text-base-content/20" />
+		<h2 class="text-lg font-semibold text-base-content/60">Playlist not found</h2>
+		<BackButton fallback="/playlists" />
+	</div>
+{:else}
+	<div class="space-y-6 sm:space-y-8">
+		<div class="group relative rounded-box playlist-hero" style="--hero-glow-color: var(--brand-hero);">
+			<div class="absolute inset-0 bg-gradient-to-b {heroGradient} transition-all duration-1000 rounded-box"></div>
+			<HeroBackdrop imageUrl={heroBgUrl} opacity={0.15} hoverOpacity={0.20} blur={3} hoverBlur={2} position="full" />
+			<div class="absolute inset-0 bg-gradient-to-b from-transparent via-base-100/50 to-base-100/80 rounded-box pointer-events-none"></div>
+
+			<div class="relative z-10 p-4 sm:p-6 lg:p-8">
+				<div class="mb-4">
+					<BackButton fallback="/playlists" />
+				</div>
+
+				<PlaylistHeader
+					bind:this={header}
+					{playlist}
+					onplayall={playAll}
+					onshuffleall={shuffleAll}
+					ondeleteclick={() => deleteModal?.showModal()}
+					onplaylistupdate={handlePlaylistUpdate}
+				/>
+			</div>
+		</div>
+
+		<PlaylistTrackList
+			bind:this={trackList}
+			{playlist}
+			ontrackchange={() => {}}
+			onsourcechange={handleSourceChange}
+			onplaytrack={playFromTrack}
+		/>
+	</div>
+
+	<DeletePlaylistModal
+		bind:this={deleteModal}
+		playlistName={playlist.name}
+		{deleting}
+		onconfirm={() => void confirmDelete()}
+	/>
+{/if}
+</div>

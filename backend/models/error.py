@@ -1,0 +1,54 @@
+from typing import Any
+
+from infrastructure.msgspec_fastapi import AppStruct, MsgSpecJSONResponse
+
+VALIDATION_ERROR = "VALIDATION_ERROR"
+NOT_FOUND = "NOT_FOUND"
+EXTERNAL_SERVICE_UNAVAILABLE = "EXTERNAL_SERVICE_UNAVAILABLE"
+SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE"
+CONFIGURATION_ERROR = "CONFIGURATION_ERROR"
+SOURCE_RESOLUTION_ERROR = "SOURCE_RESOLUTION_ERROR"
+INTERNAL_ERROR = "INTERNAL_ERROR"
+RATE_LIMITED = "RATE_LIMITED"
+CLIENT_DISCONNECTED = "CLIENT_DISCONNECTED"
+
+FORBIDDEN = "FORBIDDEN"
+RANGE_NOT_SATISFIABLE = "RANGE_NOT_SATISFIABLE"
+METHOD_NOT_ALLOWED = "METHOD_NOT_ALLOWED"
+CONFLICT = "CONFLICT"
+
+STATUS_TO_CODE: dict[int, str] = {
+    400: VALIDATION_ERROR,
+    403: FORBIDDEN,
+    404: NOT_FOUND,
+    405: METHOD_NOT_ALLOWED,
+    409: CONFLICT,
+    416: RANGE_NOT_SATISFIABLE,
+    422: VALIDATION_ERROR,
+    429: RATE_LIMITED,
+    500: INTERNAL_ERROR,
+    502: EXTERNAL_SERVICE_UNAVAILABLE,
+    503: SERVICE_UNAVAILABLE,
+}
+
+
+class ErrorDetail(AppStruct):
+    code: str
+    message: str
+    details: Any | None = None
+
+
+class ErrorResponse(AppStruct):
+    error: ErrorDetail
+
+
+def error_response(
+    status_code: int,
+    code: str,
+    message: str,
+    details: Any | None = None,
+) -> MsgSpecJSONResponse:
+    return MsgSpecJSONResponse(
+        status_code=status_code,
+        content={"error": {"code": code, "message": message, "details": details}},
+    )

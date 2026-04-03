@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discord
+    url: https://discord.gg/f98bFfsPuB
+    about: For support questions and general chat.
+  - name: Documentation
+    url: https://musicseerr.com/
+    about: Check the docs before opening an issue.

@@ -1,0 +1,55 @@
+.github/instructions/
+.Trash-1000
+
+# Runtime files
+/cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.pid
+*.sock
+*.tmp
+.env
+.env.*
+
+# Virtual environments and tool caches
+.venv/
+venv/
+env/
+.pytest_cache
+.mypy_cache/
+.ruff_cache/
+backend/.venv/
+backend/.ruff*
+backend/.virtualenv.pyz
+
+# Frontend build output
+frontend/node_modules/
+frontend/.svelte-kit/
+frontend/build/
+frontend/dist/
+frontend/.vite/
+.vite/
+
+# Local config
+docker-compose.yml
+config/config.json
+!config/config.example.json
+
+# Editor and OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+ehthumbs.db
+
+# Private working files
+/manage.sh
+/scripts/
+/todos.md
+AGENTS.md
+AGENTS.md.bak
+Docs/

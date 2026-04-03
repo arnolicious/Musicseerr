@@ -1,0 +1,1102 @@
+import asyncio
+import logging
+from datetime import datetime, timezone
+from typing import Any
+
+from api.v1.schemas.discover import (
+    DiscoverResponse,
+    BecauseYouListenTo,
+    DiscoverIntegrationStatus,
+)
+from api.v1.schemas.home import (
+    HomeSection,
+    HomeArtist,
+    HomeAlbum,
+    HomeGenre,
+    ServicePrompt,
+    DiscoverPreview,
+)
+from infrastructure.cache.memory_cache import CacheInterface
+from infrastructure.cover_urls import prefer_artist_cover_url
+from infrastructure.serialization import clone_with_updates
+from repositories.protocols import (
+    ListenBrainzRepositoryProtocol,
+    JellyfinRepositoryProtocol,
+    LidarrRepositoryProtocol,
+    MusicBrainzRepositoryProtocol,
+    LastFmRepositoryProtocol,
+)
+from repositories.listenbrainz_models import ListenBrainzArtist
+from services.home_transformers import HomeDataTransformers
+from services.discover.integration_helpers import IntegrationHelpers
+from services.discover.mbid_resolution_service import MbidResolutionService
+from services.weekly_exploration_service import WeeklyExplorationService
+
+logger = logging.getLogger(__name__)
+
+DISCOVER_CACHE_TTL = 43200  # 12 hours
+REDISCOVER_PLAY_THRESHOLD = 5
+REDISCOVER_MONTHS_AGO = 3
+MISSING_ESSENTIALS_MIN_ALBUMS = 3
+MISSING_ESSENTIALS_MAX_PER_ARTIST = 3
+VARIOUS_ARTISTS_MBID = "89ad4ac3-39f7-470e-963a-56509c546377"
+
+
+class DiscoverHomepageService:
+    def __init__(
+        self,
+        listenbrainz_repo: ListenBrainzRepositoryProtocol,
+        jellyfin_repo: JellyfinRepositoryProtocol,
+        lidarr_repo: LidarrRepositoryProtocol,
+        musicbrainz_repo: MusicBrainzRepositoryProtocol,
+        integration: IntegrationHelpers,
+        mbid_resolution: MbidResolutionService,
+        memory_cache: CacheInterface | None = None,
+        lastfm_repo: LastFmRepositoryProtocol | None = None,
+        audiodb_image_service: Any = None,
+    ) -> None:
+        self._lb_repo = listenbrainz_repo
+        self._jf_repo = jellyfin_repo
+        self._lidarr_repo = lidarr_repo
+        self._mb_repo = musicbrainz_repo
+        self._integration = integration
+        self._mbid = mbid_resolution
+        self._memory_cache = memory_cache
+        self._lfm_repo = lastfm_repo
+        self._audiodb_image_service = audiodb_image_service
+        self._transformers = HomeDataTransformers(jellyfin_repo)
+        self._weekly_exploration = WeeklyExplorationService(listenbrainz_repo, musicbrainz_repo)
+        self._building = False
+
+    async def get_discover_data(self, source: str | None = None) -> DiscoverResponse:
+        resolved_source = self._integration.resolve_source(source)
+        if self._memory_cache:
+            cache_key = self._integration.get_discover_cache_key(source)
+            cached = await self._memory_cache.get(cache_key)
+            if cached is not None:
+                if isinstance(cached, DiscoverResponse):
+                    return clone_with_updates(cached, {"refreshing": self._building})
+        if not self._building:
+            from core.task_registry import TaskRegistry
+            registry = TaskRegistry.get_instance()
+            if not registry.is_running("discover-homepage-warm"):
+                task = asyncio.create_task(self.warm_cache(source=resolved_source))
+                try:
+                    registry.register("discover-homepage-warm", task)
+                except RuntimeError:
+                    pass
+        return DiscoverResponse(
+            integration_status=self._integration.get_integration_status(),
+            service_prompts=self._build_service_prompts(),
+            refreshing=True,
+        )
+
+    async def get_discover_preview(self) -> DiscoverPreview | None:
+        if not self._memory_cache:
+            return None
+        resolved = self._integration.resolve_source(None)
+        cache_key = self._integration.get_discover_cache_key(resolved)
+        cached = await self._memory_cache.get(cache_key)
+        if not cached or not isinstance(cached, DiscoverResponse):
+            return None
+        if not cached.because_you_listen_to:
+            return None
+        first = cached.because_you_listen_to[0]
+        preview_items = [
+            item for item in first.section.items[:5]
+            if isinstance(item, HomeArtist)
+        ]
+        return DiscoverPreview(
+            seed_artist=first.seed_artist,
+            seed_artist_mbid=first.seed_artist_mbid,
+            items=preview_items,
+        )
+
+    async def refresh_discover_data(self) -> None:
+        if self._building:
+            return
+        from core.task_registry import TaskRegistry
+        registry = TaskRegistry.get_instance()
+        if not registry.is_running("discover-homepage-warm"):
+            task = asyncio.create_task(self.warm_cache())
+            try:
+                registry.register("discover-homepage-warm", task)
+            except RuntimeError:
+                pass
+
+    async def warm_cache(self, source: str | None = None) -> None:
+        if self._building:
+            return
+        self._building = True
+        try:
+            resolved = self._integration.resolve_source(source)
+            response = await self.build_discover_data(source=resolved)
+            if self._memory_cache and self._has_meaningful_content(response):
+                cache_key = self._integration.get_discover_cache_key(resolved)
+                await self._memory_cache.set(cache_key, response, DISCOVER_CACHE_TTL)
+                logger.info("Discover data built and cached for source=%s", resolved)
+            elif not self._has_meaningful_content(response):
+                logger.warning("Discover build produced no meaningful content, keeping existing cache")
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"Failed to build discover data: {e}")
+        finally:
+            self._building = False
+
+    def _has_meaningful_content(self, response: DiscoverResponse) -> bool:
+        return bool(
+            response.because_you_listen_to
+            or response.fresh_releases
+            or response.globally_trending
+            or response.artists_you_might_like
+            or response.popular_in_your_genres
+            or response.missing_essentials
+            or response.rediscover
+            or response.lastfm_weekly_artist_chart
+            or response.lastfm_weekly_album_chart
+            or response.lastfm_recent_scrobbles
+            or response.weekly_exploration
+        )
+
+    async def build_discover_data(self, source: str | None = None) -> DiscoverResponse:
+        resolved_source = self._integration.resolve_source(source)
+        lb_enabled = self._integration.is_listenbrainz_enabled()
+        jf_enabled = self._integration.is_jellyfin_enabled()
+        lidarr_configured = self._integration.is_lidarr_configured()
+        lfm_enabled = self._integration.is_lastfm_enabled()
+        username = self._integration.get_listenbrainz_username()
+        lfm_username = self._integration.get_lastfm_username()
+
+        library_mbids = await self._mbid.get_library_artist_mbids(lidarr_configured)
+
+        seed_artists = await self._get_seed_artists(
+            lb_enabled, username, jf_enabled,
+            resolved_source=resolved_source,
+            lfm_enabled=lfm_enabled,
+            lfm_username=lfm_username,
+        )
+
+        tasks: dict[str, Any] = {}
+
+        for i, seed in enumerate(seed_artists[:3]):
+            mbid = seed.artist_mbids[0] if hasattr(seed, 'artist_mbids') and seed.artist_mbids else getattr(seed, 'artist_mbid', None)
+            if mbid:
+                if resolved_source == "lastfm" and self._lfm_repo and lfm_enabled:
+                    tasks[f"similar_{i}"] = self._lfm_repo.get_similar_artists(
+                        seed.artist_name, mbid=mbid, limit=20
+                    )
+                else:
+                    tasks[f"similar_{i}"] = self._lb_repo.get_similar_artists(mbid, max_similar=20)
+
+        if resolved_source == "listenbrainz":
+            tasks["lb_trending"] = self._lb_repo.get_sitewide_top_artists(count=20)
+        elif resolved_source == "lastfm" and self._lfm_repo and lfm_enabled:
+            tasks["lfm_global_top"] = self._lfm_repo.get_global_top_artists(limit=20)
+
+        if self._lfm_repo and lfm_enabled and lfm_username:
+            tasks["lfm_weekly_artists"] = self._lfm_repo.get_user_weekly_artist_chart(
+                lfm_username
+            )
+            tasks["lfm_weekly_albums"] = self._lfm_repo.get_user_weekly_album_chart(
+                lfm_username
+            )
+            tasks["lfm_recent"] = self._lfm_repo.get_user_recent_tracks(
+                lfm_username, limit=20
+            )
+
+        if resolved_source == "listenbrainz" and lb_enabled and username:
+            tasks["lb_fresh"] = self._lb_repo.get_user_fresh_releases()
+            tasks["lb_genres"] = self._lb_repo.get_user_genre_activity(username)
+        elif resolved_source == "lastfm" and self._lfm_repo and lfm_enabled and lfm_username:
+            tasks["lfm_user_top_artists_for_genres"] = self._lfm_repo.get_user_top_artists(
+                lfm_username, period="3month", limit=5
+            )
+
+        if jf_enabled:
+            tasks["jf_most_played"] = self._jf_repo.get_most_played_artists(limit=50)
+
+        if lidarr_configured:
+            tasks["library_artists"] = self._lidarr_repo.get_artists_from_library()
+            tasks["library_albums"] = self._lidarr_repo.get_library()
+
+        results = await self._execute_tasks(tasks)
+
+        logger.info(
+            "Discover data fetch results: %s",
+            {k: "ok" if v is not None else "empty" for k, v in results.items()},
+        )
+
+        response = DiscoverResponse(
+            integration_status=self._integration.get_integration_status(),
+        )
+
+        seen_artist_mbids: set[str] = set()
+
+        response.because_you_listen_to = self._build_because_sections(
+            seed_artists, results, library_mbids, seen_artist_mbids,
+            resolved_source=resolved_source,
+        )
+        await self._enrich_because_sections_audiodb(response.because_you_listen_to)
+        logger.info("because_you_listen_to: %d sections", len(response.because_you_listen_to))
+
+        response.fresh_releases = self._build_fresh_releases(results, library_mbids)
+
+        post_tasks: dict[str, Any] = {
+            "missing_essentials": self._build_missing_essentials(results, library_mbids),
+            "lastfm_weekly_album_chart": self._build_lastfm_weekly_album_chart(
+                results, library_mbids
+            ),
+            "lastfm_recent_scrobbles": self._build_lastfm_recent_scrobbles(
+                results, library_mbids
+            ),
+        }
+        if resolved_source == "listenbrainz" and lb_enabled and username:
+            post_tasks["weekly_exploration"] = self._weekly_exploration.build_section(username)
+        post_results = await self._execute_tasks(post_tasks)
+        response.missing_essentials = post_results.get("missing_essentials")
+        response.weekly_exploration = post_results.get("weekly_exploration")
+
+        response.rediscover = self._build_rediscover(results, library_mbids, jf_enabled)
+
+        response.artists_you_might_like = self._build_artists_you_might_like(
+            seed_artists, results, library_mbids, seen_artist_mbids,
+            resolved_source=resolved_source,
+        )
+
+        response.popular_in_your_genres = await self._build_popular_in_genres(
+            results, library_mbids, seen_artist_mbids,
+            resolved_source=resolved_source,
+        )
+
+        response.genre_list = self._build_genre_list(results, lb_enabled)
+
+        if response.genre_list and response.genre_list.items:
+            genre_names = [
+                g.name for g in response.genre_list.items[:20]
+                if isinstance(g, HomeGenre)
+            ]
+            if genre_names:
+                raw_mbids = await asyncio.gather(
+                    *(self._get_genre_artist(g) for g in genre_names)
+                )
+                used_mbids: set[str] = set()
+                genre_artists: dict[str, str | None] = {}
+                for g, mbid in zip(genre_names, raw_mbids):
+                    if mbid and mbid not in used_mbids:
+                        genre_artists[g] = mbid
+                        used_mbids.add(mbid)
+                    elif mbid and mbid in used_mbids:
+                        alt = await self._get_genre_artist(g, exclude_mbids=used_mbids)
+                        genre_artists[g] = alt
+                        if alt:
+                            used_mbids.add(alt)
+                    else:
+                        genre_artists[g] = None
+                response.genre_artists = genre_artists
+                response.genre_artist_images = await self._resolve_genre_artist_images(
+                    response.genre_artists
+                )
+
+        if resolved_source == "lastfm":
+            response.globally_trending = self._build_lastfm_globally_trending(
+                results, library_mbids, seen_artist_mbids
+            )
+        else:
+            response.globally_trending = self._build_globally_trending(
+                results, library_mbids, seen_artist_mbids
+            )
+
+        response.lastfm_weekly_artist_chart = self._build_lastfm_weekly_artist_chart(
+            results, library_mbids, seen_artist_mbids
+        )
+        response.lastfm_weekly_album_chart = post_results.get("lastfm_weekly_album_chart")
+        response.lastfm_recent_scrobbles = post_results.get("lastfm_recent_scrobbles")
+
+        response.service_prompts = self._build_service_prompts()
+
+        sections_status = {
+            "because": len(response.because_you_listen_to),
+            "fresh_releases": response.fresh_releases is not None,
+            "missing_essentials": response.missing_essentials is not None,
+            "rediscover": response.rediscover is not None,
+            "artists_you_might_like": response.artists_you_might_like is not None,
+            "popular_in_genres": response.popular_in_your_genres is not None,
+            "genre_list": response.genre_list is not None,
+            "globally_trending": response.globally_trending is not None,
+            "weekly_exploration": response.weekly_exploration is not None,
+            "lastfm_weekly_artist_chart": getattr(response, "lastfm_weekly_artist_chart", None) is not None,
+            "lastfm_weekly_album_chart": getattr(response, "lastfm_weekly_album_chart", None) is not None,
+            "lastfm_recent_scrobbles": getattr(response, "lastfm_recent_scrobbles", None) is not None,
+        }
+        logger.info("Discover build complete (source=%s): %s", resolved_source, sections_status)
+
+        return response
+
+    async def _get_seed_artists(
+        self,
+        lb_enabled: bool,
+        username: str | None,
+        jf_enabled: bool,
+        resolved_source: str = "listenbrainz",
+        lfm_enabled: bool = False,
+        lfm_username: str | None = None,
+    ) -> list[ListenBrainzArtist]:
+        seeds: list[ListenBrainzArtist] = []
+        seen_mbids: set[str] = set()
+
+        if resolved_source == "lastfm" and lfm_enabled and lfm_username and self._lfm_repo:
+            try:
+                lfm_artists = await self._lfm_repo.get_user_top_artists(
+                    lfm_username, period="3month", limit=10
+                )
+                for a in lfm_artists:
+                    if len(seeds) >= 3:
+                        break
+                    mbid = a.mbid
+                    if mbid and mbid not in seen_mbids:
+                        seeds.append(
+                            ListenBrainzArtist(
+                                artist_name=a.name,
+                                listen_count=a.playcount,
+                                artist_mbids=[mbid],
+                            )
+                        )
+                        seen_mbids.add(mbid)
+            except Exception as e:  # noqa: BLE001
+                logger.warning("Failed to get Last.fm seed artists: %s", e)
+
+        if resolved_source != "lastfm" and len(seeds) < 3 and lb_enabled and username:
+            for range_ in ("this_week", "this_month"):
+                if len(seeds) >= 3:
+                    break
+                try:
+                    artists = await self._lb_repo.get_user_top_artists(count=10, range_=range_)
+                    for a in artists:
+                        if len(seeds) >= 3:
+                            break
+                        mbid = a.artist_mbids[0] if a.artist_mbids else None
+                        if mbid and mbid not in seen_mbids:
+                            seeds.append(a)
+                            seen_mbids.add(mbid)
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(f"Failed to get LB top artists ({range_}): {e}")
+
+        if resolved_source != "lastfm" and len(seeds) < 3 and jf_enabled:
+            for fetch_fn in (
+                lambda: self._jf_repo.get_most_played_artists(limit=10),
+                lambda: self._jf_repo.get_favorite_artists(limit=10),
+            ):
+                if len(seeds) >= 3:
+                    break
+                try:
+                    jf_items = await fetch_fn()
+                    for item in jf_items:
+                        if len(seeds) >= 3:
+                            break
+                        mbid = None
+                        if item.provider_ids:
+                            mbid = item.provider_ids.get("MusicBrainzArtist")
+                        if mbid and mbid not in seen_mbids:
+                            seeds.append(ListenBrainzArtist(
+                                artist_name=item.artist_name or item.name,
+                                listen_count=item.play_count,
+                                artist_mbids=[mbid],
+                            ))
+                            seen_mbids.add(mbid)
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(f"Failed to get Jellyfin seed artists: {e}")
+                    continue
+
+        logger.info(
+            "Seed artists found: %d — %s",
+            len(seeds),
+            [(s.artist_name, s.artist_mbids[0][:8] if s.artist_mbids else "?") for s in seeds],
+        )
+        return seeds
+
+    async def _enrich_because_sections_audiodb(
+        self, sections: list[BecauseYouListenTo]
+    ) -> None:
+        if not self._audiodb_image_service:
+            return
+        for section in sections:
+            if not section.seed_artist_mbid:
+                continue
+            images = await self._audiodb_image_service.get_cached_artist_images(
+                section.seed_artist_mbid
+            )
+            if not images or images.is_negative:
+                continue
+            section.banner_url = images.banner_url
+            section.wide_thumb_url = images.wide_thumb_url
+            section.fanart_url = images.fanart_url
+
+    def _build_because_sections(
+        self,
+        seed_artists: list,
+        results: dict[str, Any],
+        library_mbids: set[str],
+        seen_artist_mbids: set[str],
+        resolved_source: str = "listenbrainz",
+    ) -> list[BecauseYouListenTo]:
+        sections: list[BecauseYouListenTo] = []
+
+        for i, seed in enumerate(seed_artists[:3]):
+            similar = results.get(f"similar_{i}")
+            if not similar:
+                continue
+
+            seed_name = getattr(seed, 'artist_name', 'Unknown')
+            seed_mbid = ""
+            if hasattr(seed, 'artist_mbids') and seed.artist_mbids:
+                seed_mbid = seed.artist_mbids[0]
+            elif hasattr(seed, 'artist_mbid'):
+                seed_mbid = seed.artist_mbid
+
+            items: list[HomeArtist] = []
+            for artist in similar:
+                mbid = getattr(artist, 'artist_mbid', None) or getattr(artist, 'mbid', None)
+                name = getattr(artist, 'artist_name', None) or getattr(artist, 'name', '')
+                listen_count = getattr(artist, 'listen_count', None) or getattr(artist, 'playcount', 0)
+                if not mbid:
+                    continue
+                if mbid.lower() in seen_artist_mbids:
+                    continue
+                items.append(HomeArtist(
+                    mbid=mbid,
+                    name=name,
+                    listen_count=listen_count,
+                    in_library=mbid.lower() in library_mbids,
+                ))
+                seen_artist_mbids.add(mbid.lower())
+
+            if not items:
+                continue
+
+            min_unique = 3
+            if len(items) < min_unique and len(sections) > 0:
+                continue
+
+            source_label = "lastfm" if resolved_source == "lastfm" else "listenbrainz"
+            sections.append(BecauseYouListenTo(
+                seed_artist=seed_name,
+                seed_artist_mbid=seed_mbid,
+                listen_count=getattr(seed, 'listen_count', 0),
+                section=HomeSection(
+                    title=f"Because You Listen To {seed_name}",
+                    type="artists",
+                    items=items[:15],
+                    source=source_label,
+                ),
+            ))
+
+        return sections
+
+    def _build_fresh_releases(
+        self, results: dict[str, Any], library_mbids: set[str]
+    ) -> HomeSection | None:
+        releases = results.get("lb_fresh")
+        if not releases:
+            return None
+        items: list[HomeAlbum] = []
+        for r in releases[:15]:
+            try:
+                if isinstance(r, dict):
+                    mbid = r.get("release_group_mbid", "")
+                    artist_mbids = r.get("artist_mbids", [])
+                    items.append(HomeAlbum(
+                        mbid=mbid,
+                        name=r.get("title", r.get("release_group_name", "Unknown")),
+                        artist_name=r.get("artist_credit_name", r.get("artist_name", "")),
+                        artist_mbid=artist_mbids[0] if artist_mbids else None,
+                        listen_count=r.get("listen_count"),
+                        in_library=mbid.lower() in library_mbids if isinstance(mbid, str) and mbid else False,
+                    ))
+                else:
+                    items.append(self._transformers.lb_release_to_home(r, library_mbids))
+            except Exception as e:  # noqa: BLE001
+                logger.debug(f"Skipping fresh release item: {e}")
+                continue
+        if not items:
+            return None
+        return HomeSection(
+            title="Fresh Releases For You",
+            type="albums",
+            items=items,
+            source="listenbrainz",
+        )
+
+    async def _build_missing_essentials(
+        self, results: dict[str, Any], library_mbids: set[str]
+    ) -> HomeSection | None:
+        library_artists = results.get("library_artists") or []
+        library_albums = results.get("library_albums") or []
+
+        if not library_artists or not library_albums:
+            return None
+
+        from collections import Counter
+        artist_album_counts: Counter[str] = Counter()
+        for album in library_albums:
+            artist_mbid = getattr(album, 'artist_mbid', None)
+            if artist_mbid:
+                artist_album_counts[artist_mbid.lower()] += 1
+
+        library_album_mbids = set()
+        for album in library_albums:
+            mbid = getattr(album, 'musicbrainz_id', None)
+            if mbid:
+                library_album_mbids.add(mbid.lower())
+
+        qualifying_artists = [
+            (mbid, count) for mbid, count in artist_album_counts.items()
+            if count >= MISSING_ESSENTIALS_MIN_ALBUMS
+        ]
+        qualifying_artists.sort(key=lambda x: -x[1])
+
+        semaphore = asyncio.Semaphore(3)
+
+        async def _fetch_artist_missing(artist_mbid: str) -> list[HomeAlbum]:
+            try:
+                async with semaphore:
+                    top_releases = await self._lb_repo.get_artist_top_release_groups(
+                        artist_mbid, count=10
+                    )
+            except Exception as e:  # noqa: BLE001
+                logger.debug(f"Failed to get releases for artist {artist_mbid[:8]}: {e}")
+                return []
+
+            artist_missing = 0
+            artist_items: list[HomeAlbum] = []
+            for rg in top_releases:
+                if artist_missing >= MISSING_ESSENTIALS_MAX_PER_ARTIST:
+                    break
+                rg_mbid = rg.release_group_mbid
+                if not rg_mbid or rg_mbid.lower() in library_album_mbids:
+                    continue
+                artist_items.append(HomeAlbum(
+                    mbid=rg_mbid,
+                    name=rg.release_group_name,
+                    artist_name=rg.artist_name,
+                    listen_count=rg.listen_count,
+                    in_library=False,
+                ))
+                artist_missing += 1
+
+            return artist_items
+
+        artist_results = await asyncio.gather(
+            *(_fetch_artist_missing(artist_mbid) for artist_mbid, _ in qualifying_artists[:10]),
+            return_exceptions=True,
+        )
+
+        all_missing: list[HomeAlbum] = []
+        for result in artist_results:
+            if isinstance(result, Exception):
+                logger.debug("Failed to fetch missing essentials batch item: %s", result)
+                continue
+            all_missing.extend(result)
+
+        if not all_missing:
+            return None
+
+        all_missing.sort(key=lambda x: x.listen_count or 0, reverse=True)
+        return HomeSection(
+            title="Missing Essentials",
+            type="albums",
+            items=all_missing[:15],
+            source="lidarr",
+        )
+
+    def _build_rediscover(
+        self,
+        results: dict[str, Any],
+        library_mbids: set[str],
+        jf_enabled: bool,
+    ) -> HomeSection | None:
+        if not jf_enabled:
+            return None
+
+        jf_artists = results.get("jf_most_played")
+        if not jf_artists:
+            return None
+
+        now = datetime.now(timezone.utc)
+        rediscover_items: list[HomeArtist] = []
+        seen: set[str] = set()
+
+        for item in jf_artists:
+            if item.play_count < REDISCOVER_PLAY_THRESHOLD:
+                continue
+            if not item.last_played:
+                continue
+
+            try:
+                last_played = datetime.fromisoformat(item.last_played.replace("Z", "+00:00"))
+                months_since = (now - last_played).days / 30.0
+                if months_since < REDISCOVER_MONTHS_AGO:
+                    continue
+            except (ValueError, TypeError):
+                continue
+
+            artist_name = item.artist_name or item.name
+            if artist_name.lower() in seen:
+                continue
+            seen.add(artist_name.lower())
+
+            mbid = None
+            if item.provider_ids:
+                mbid = item.provider_ids.get("MusicBrainzArtist")
+
+            image_url = None
+            if self._jf_repo and hasattr(self._jf_repo, 'get_image_url'):
+                target_id = item.artist_id or item.id
+                image_url = prefer_artist_cover_url(
+                    mbid,
+                    self._jf_repo.get_image_url(target_id, item.image_tag),
+                    size=500,
+                )
+
+            rediscover_items.append(HomeArtist(
+                mbid=mbid,
+                name=artist_name,
+                listen_count=item.play_count,
+                image_url=image_url,
+                in_library=mbid.lower() in library_mbids if mbid else False,
+            ))
+
+            if len(rediscover_items) >= 15:
+                break
+
+        if not rediscover_items:
+            return None
+
+        return HomeSection(
+            title="Rediscover",
+            type="artists",
+            items=rediscover_items,
+            source="jellyfin",
+        )
+
+    def _build_artists_you_might_like(
+        self,
+        seed_artists: list,
+        results: dict[str, Any],
+        library_mbids: set[str],
+        seen_artist_mbids: set[str],
+        resolved_source: str = "listenbrainz",
+    ) -> HomeSection | None:
+        aggregated: list[HomeArtist] = []
+        for i in range(len(seed_artists[:3])):
+            similar = results.get(f"similar_{i}")
+            if not similar:
+                continue
+            for artist in similar:
+                mbid = getattr(artist, 'artist_mbid', None) or getattr(artist, 'mbid', None)
+                name = getattr(artist, 'artist_name', None) or getattr(artist, 'name', '')
+                listen_count = getattr(artist, 'listen_count', None) or getattr(artist, 'playcount', 0)
+                if not mbid:
+                    continue
+                if mbid.lower() in seen_artist_mbids:
+                    continue
+                aggregated.append(HomeArtist(
+                    mbid=mbid,
+                    name=name,
+                    listen_count=listen_count,
+                    in_library=mbid.lower() in library_mbids,
+                ))
+                seen_artist_mbids.add(mbid.lower())
+
+        if not aggregated:
+            return None
+
+        aggregated.sort(key=lambda x: x.listen_count or 0, reverse=True)
+        source_label = "lastfm" if resolved_source == "lastfm" else "listenbrainz"
+        return HomeSection(
+            title="Artists You Might Like",
+            type="artists",
+            items=aggregated[:15],
+            source=source_label,
+        )
+
+    async def _build_popular_in_genres(
+        self,
+        results: dict[str, Any],
+        library_mbids: set[str],
+        seen_artist_mbids: set[str],
+        resolved_source: str = "listenbrainz",
+    ) -> HomeSection | None:
+        if resolved_source == "lastfm" and self._lfm_repo:
+            return await self._build_popular_in_genres_lastfm(
+                results, library_mbids, seen_artist_mbids
+            )
+
+        genres = results.get("lb_genres")
+
+        if not genres:
+            return None
+        else:
+            genre_names = []
+            for genre in genres[:3]:
+                name = genre.genre if hasattr(genre, 'genre') else str(genre)
+                genre_names.append(name)
+
+        all_artists: list[HomeArtist] = []
+        tag_results = await asyncio.gather(
+            *(self._mb_repo.search_artists_by_tag(genre_name, limit=10) for genre_name in genre_names),
+            return_exceptions=True,
+        )
+
+        for genre_name, tag_artists in zip(genre_names, tag_results):
+            if isinstance(tag_artists, Exception):
+                logger.debug(f"Failed to search artists for genre '{genre_name}': {tag_artists}")
+                continue
+            for artist in tag_artists:
+                if artist is None:
+                    continue
+                mbid = artist.musicbrainz_id
+                if not mbid or mbid.lower() in seen_artist_mbids:
+                    continue
+                all_artists.append(HomeArtist(
+                    mbid=mbid,
+                    name=artist.title if hasattr(artist, 'title') else str(artist),
+                    in_library=mbid.lower() in library_mbids,
+                ))
+                seen_artist_mbids.add(mbid.lower())
+
+        if not all_artists:
+            return None
+
+        return HomeSection(
+            title="Popular In Your Genres",
+            type="artists",
+            items=all_artists[:15],
+            source="musicbrainz",
+        )
+
+    async def _build_popular_in_genres_lastfm(
+        self,
+        results: dict[str, Any],
+        library_mbids: set[str],
+        seen_artist_mbids: set[str],
+    ) -> HomeSection | None:
+        top_artists = results.get("lfm_user_top_artists_for_genres") or []
+        if not top_artists or not self._lfm_repo:
+            return None
+
+        artist_info_results = await asyncio.gather(
+            *(
+                self._lfm_repo.get_artist_info(artist.name, mbid=artist.mbid)
+                for artist in top_artists[:5]
+            ),
+            return_exceptions=True,
+        )
+
+        genre_names: list[str] = []
+        seen_genres: set[str] = set()
+        for info in artist_info_results:
+            if isinstance(info, Exception):
+                logger.debug("Failed to get artist info for genre extraction: %s", info)
+                continue
+            if info and info.tags:
+                for tag in info.tags[:2]:
+                    if tag.name and tag.name.lower() not in seen_genres:
+                        genre_names.append(tag.name)
+                        seen_genres.add(tag.name.lower())
+                        if len(genre_names) >= 3:
+                            break
+            if len(genre_names) >= 3:
+                break
+
+        if not genre_names:
+            return None
+
+        tag_top_artist_results = await asyncio.gather(
+            *(
+                self._lfm_repo.get_tag_top_artists(genre_name, limit=10)
+                for genre_name in genre_names
+            ),
+            return_exceptions=True,
+        )
+
+        all_artists: list[HomeArtist] = []
+        for genre_name, tag_artists in zip(genre_names, tag_top_artist_results):
+            if isinstance(tag_artists, Exception):
+                logger.debug("Failed to get tag top artists for '%s': %s", genre_name, tag_artists)
+                continue
+            for artist in tag_artists:
+                mbid = artist.mbid
+                if not mbid or mbid.lower() in seen_artist_mbids:
+                    continue
+                all_artists.append(HomeArtist(
+                    mbid=mbid,
+                    name=artist.name,
+                    listen_count=artist.playcount,
+                    in_library=mbid.lower() in library_mbids,
+                ))
+                seen_artist_mbids.add(mbid.lower())
+
+        if not all_artists:
+            return None
+
+        return HomeSection(
+            title="Popular In Your Genres",
+            type="artists",
+            items=all_artists[:15],
+            source="lastfm",
+        )
+
+    def _build_genre_list(
+        self, results: dict[str, Any], lb_enabled: bool
+    ) -> HomeSection | None:
+        lb_genres = results.get("lb_genres")
+        library_albums = results.get("library_albums") or []
+        genres = self._transformers.extract_genres_from_library(library_albums, lb_genres)
+        if not genres:
+            return None
+        source = "listenbrainz" if lb_genres else ("lidarr" if library_albums else None)
+        return HomeSection(title="Browse by Genre", type="genres", items=genres, source=source)
+
+    def _build_globally_trending(
+        self,
+        results: dict[str, Any],
+        library_mbids: set[str],
+        seen_artist_mbids: set[str],
+    ) -> HomeSection | None:
+        artists = results.get("lb_trending") or []
+        items = []
+        for artist in artists[:20]:
+            home_artist = self._transformers.lb_artist_to_home(artist, library_mbids)
+            if home_artist and home_artist.mbid and home_artist.mbid.lower() not in seen_artist_mbids:
+                items.append(home_artist)
+                seen_artist_mbids.add(home_artist.mbid.lower())
+
+        if not items:
+            return None
+
+        return HomeSection(
+            title="Globally Trending",
+            type="artists",
+            items=items[:15],
+            source="listenbrainz",
+        )
+
+    def _build_lastfm_globally_trending(
+        self,
+        results: dict[str, Any],
+        library_mbids: set[str],
+        seen_artist_mbids: set[str],
+    ) -> HomeSection | None:
+        artists = results.get("lfm_global_top") or []
+        items = []
+        for artist in artists[:20]:
+            home_artist = self._transformers.lastfm_artist_to_home(artist, library_mbids)
+            if home_artist and home_artist.mbid and home_artist.mbid.lower() not in seen_artist_mbids:
+                items.append(home_artist)
+                seen_artist_mbids.add(home_artist.mbid.lower())
+
+        if not items:
+            return None
+
+        return HomeSection(
+            title="Globally Trending",
+            type="artists",
+            items=items[:15],
+            source="lastfm",
+        )
+
+    def _build_lastfm_weekly_artist_chart(
+        self,
+        results: dict[str, Any],
+        library_mbids: set[str],
+        seen_artist_mbids: set[str],
+    ) -> HomeSection | None:
+        artists = results.get("lfm_weekly_artists") or []
+        items = []
+        for artist in artists[:20]:
+            home_artist = self._transformers.lastfm_artist_to_home(artist, library_mbids)
+            if home_artist and home_artist.mbid and home_artist.mbid.lower() not in seen_artist_mbids:
+                items.append(home_artist)
+                seen_artist_mbids.add(home_artist.mbid.lower())
+
+        if not items:
+            return None
+
+        return HomeSection(
+            title="Your Weekly Top Artists",
+            type="artists",
+            items=items[:15],
+            source="lastfm",
+        )
+
+    async def _build_lastfm_weekly_album_chart(
+        self,
+        results: dict[str, Any],
+        library_mbids: set[str],
+    ) -> HomeSection | None:
+        albums = results.get("lfm_weekly_albums") or []
+        if not albums:
+            return None
+
+        release_mbids = list({a.mbid for a in albums[:20] if a.mbid})
+        rg_map = await self._resolve_release_mbids(release_mbids) if release_mbids else {}
+
+        items = []
+        for album in albums[:20]:
+            home_album = self._transformers.lastfm_album_to_home(album, library_mbids)
+            if home_album and home_album.mbid:
+                home_album.mbid = rg_map.get(home_album.mbid, home_album.mbid)
+                items.append(home_album)
+
+        if not items:
+            return None
+
+        return HomeSection(
+            title="Your Top Albums This Week",
+            type="albums",
+            items=items[:15],
+            source="lastfm",
+        )
+
+    async def _build_lastfm_recent_scrobbles(
+        self,
+        results: dict[str, Any],
+        library_mbids: set[str],
+    ) -> HomeSection | None:
+        tracks = results.get("lfm_recent") or []
+        if not tracks:
+            return None
+
+        release_mbids = list({t.album_mbid for t in tracks[:30] if t.album_mbid})
+        rg_map = await self._resolve_release_mbids(release_mbids) if release_mbids else {}
+
+        items = []
+        seen_album_mbids: set[str] = set()
+        for track in tracks[:30]:
+            home_album = self._transformers.lastfm_recent_to_home(track, library_mbids)
+            if home_album and home_album.mbid:
+                resolved = rg_map.get(home_album.mbid, home_album.mbid)
+                home_album.mbid = resolved
+                if resolved.lower() not in seen_album_mbids:
+                    items.append(home_album)
+                    seen_album_mbids.add(resolved.lower())
+
+        if not items:
+            return None
+
+        return HomeSection(
+            title="Recently Scrobbled",
+            type="albums",
+            items=items[:15],
+            source="lastfm",
+        )
+
+    async def _resolve_release_mbids(self, release_ids: list[str]) -> dict[str, str]:
+        if not release_ids:
+            return {}
+        unique_ids = list(dict.fromkeys(release_ids))
+        tasks = [self._mb_repo.get_release_group_id_from_release(rid) for rid in unique_ids]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        rg_map: dict[str, str] = {}
+        for rid, rg_id in zip(unique_ids, results):
+            if isinstance(rg_id, str) and rg_id:
+                rg_map[rid] = rg_id
+        return rg_map
+
+    async def _get_genre_artist(self, genre_name: str, exclude_mbids: set[str] | None = None) -> str | None:
+        try:
+            artists = await self._mb_repo.search_artists_by_tag(genre_name, limit=10)
+            for artist in artists:
+                if not artist.musicbrainz_id or artist.musicbrainz_id == VARIOUS_ARTISTS_MBID:
+                    continue
+                if exclude_mbids and artist.musicbrainz_id in exclude_mbids:
+                    continue
+                return artist.musicbrainz_id
+        except Exception:  # noqa: BLE001
+            logger.debug("Failed to resolve genre artist from library")
+        return None
+
+    async def _resolve_genre_artist_images(
+        self, genre_artists: dict[str, str | None]
+    ) -> dict[str, str | None]:
+        if not self._audiodb_image_service or not genre_artists:
+            return {}
+
+        sem = asyncio.Semaphore(5)
+
+        async def _resolve_one(genre: str, mbid: str) -> tuple[str, str | None]:
+            async with sem:
+                try:
+                    images = await self._audiodb_image_service.fetch_and_cache_artist_images(mbid)
+                    if images and not images.is_negative:
+                        url = images.wide_thumb_url or images.banner_url or images.fanart_url
+                        if url:
+                            return (genre, url)
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("Failed to resolve discover genre image for %s: %s", genre, exc)
+                return (genre, None)
+
+        tasks = [
+            _resolve_one(genre, mbid)
+            for genre, mbid in genre_artists.items()
+            if mbid
+        ]
+        if not tasks:
+            return {}
+
+        results = await asyncio.gather(*tasks)
+        return {genre: url for genre, url in results if url}
+
+    def _build_service_prompts(self) -> list[ServicePrompt]:
+        prompts = []
+        if not self._integration.is_listenbrainz_enabled():
+            prompts.append(ServicePrompt(
+                service="listenbrainz",
+                title="Connect ListenBrainz",
+                description="Get recommendations from your listening history, find similar artists, and keep an eye on your top genres. Connect Last.fm too if you want global listener stats.",
+                icon="🎵",
+                color="primary",
+                features=["Personalized recommendations", "Similar artists", "Listening stats", "Genre insights"],
+            ))
+        if not self._integration.is_jellyfin_enabled():
+            prompts.append(ServicePrompt(
+                service="jellyfin",
+                title="Connect Jellyfin",
+                description="Use your play history to surface favorites and sharpen recommendations.",
+                icon="📺",
+                color="secondary",
+                features=["Rediscover favorites", "Play statistics", "Listening history", "Better recommendations"],
+            ))
+        if not self._integration.is_lidarr_configured():
+            prompts.append(ServicePrompt(
+                service="lidarr-connection",
+                title="Connect Lidarr",
+                description="Spot gaps in your collection and keep your library in sync.",
+                icon="🎶",
+                color="accent",
+                features=["Missing essentials", "Library management", "Album requests", "Collection tracking"],
+            ))
+        if not self._integration.is_lastfm_enabled():
+            prompts.append(ServicePrompt(
+                service="lastfm",
+                title="Connect Last.fm",
+                description="Track your listening, compare stats, and discover music that matches your taste.",
+                icon="🎸",
+                color="primary",
+                features=["Scrobbling", "Global listener stats", "Artist recommendations", "Play history"],
+            ))
+        return prompts
+
+    async def _execute_tasks(self, tasks: dict[str, Any]) -> dict[str, Any]:
+        if not tasks:
+            return {}
+        keys = list(tasks.keys())
+        coros = list(tasks.values())
+        raw_results = await asyncio.gather(*coros, return_exceptions=True)
+        results = {}
+        for key, result in zip(keys, raw_results):
+            if isinstance(result, Exception):
+                logger.warning(f"Discover task {key} failed: {result}")
+                results[key] = None
+            else:
+                results[key] = result
+        return results

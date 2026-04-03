@@ -1,0 +1,122 @@
+"""Dependency injection providers for the MusicSeerr backend.
+
+This package replaces the former monolithic ``core/dependencies.py``.
+All public names are re-exported here so that existing imports like
+``from core.dependencies import get_home_service`` continue to work.
+"""
+
+from .cache_providers import (  # noqa: F401
+    get_cache,
+    get_disk_cache,
+    get_library_db,
+    get_genre_index,
+    get_youtube_store,
+    get_mbid_store,
+    get_sync_state_store,
+    get_persistence_write_lock,
+    get_preferences_service,
+    get_cache_service,
+    get_cache_status_service,
+)
+
+from .repo_providers import (  # noqa: F401
+    get_lidarr_repository,
+    get_musicbrainz_repository,
+    get_wikidata_repository,
+    get_listenbrainz_repository,
+    get_jellyfin_repository,
+    get_navidrome_repository,
+    get_coverart_repository,
+    get_youtube_repo,
+    get_audiodb_repository,
+    get_audiodb_image_service,
+    get_audiodb_browse_queue,
+    get_lastfm_repository,
+    get_playlist_repository,
+    get_request_history_store,
+)
+
+from .service_providers import (  # noqa: F401
+    get_search_service,
+    get_search_enrichment_service,
+    get_artist_service,
+    get_album_service,
+    get_request_queue,
+    get_request_service,
+    get_requests_page_service,
+    get_playlist_service,
+    get_library_service,
+    get_status_service,
+    get_home_service,
+    get_genre_cover_prewarm_service,
+    get_home_charts_service,
+    get_settings_service,
+    get_artist_discovery_service,
+    get_artist_enrichment_service,
+    get_album_enrichment_service,
+    get_album_discovery_service,
+    get_youtube_service,
+    get_lastfm_auth_service,
+    get_scrobble_service,
+    get_discover_service,
+    get_discover_queue_manager,
+    get_jellyfin_playback_service,
+    get_local_files_service,
+    get_jellyfin_library_service,
+    get_navidrome_library_service,
+    get_navidrome_playback_service,
+)
+
+from .type_aliases import (  # noqa: F401
+    SettingsDep,
+    CacheDep,
+    DiskCacheDep,
+    PreferencesServiceDep,
+    LidarrRepositoryDep,
+    MusicBrainzRepositoryDep,
+    WikidataRepositoryDep,
+    ListenBrainzRepositoryDep,
+    JellyfinRepositoryDep,
+    CoverArtRepositoryDep,
+    SearchServiceDep,
+    SearchEnrichmentServiceDep,
+    ArtistServiceDep,
+    AlbumServiceDep,
+    RequestQueueDep,
+    RequestServiceDep,
+    LibraryServiceDep,
+    StatusServiceDep,
+    CacheServiceDep,
+    HomeServiceDep,
+    HomeChartsServiceDep,
+    SettingsServiceDep,
+    ArtistDiscoveryServiceDep,
+    AlbumDiscoveryServiceDep,
+    DiscoverServiceDep,
+    DiscoverQueueManagerDep,
+    YouTubeRepositoryDep,
+    YouTubeServiceDep,
+    RequestHistoryStoreDep,
+    RequestsPageServiceDep,
+    JellyfinPlaybackServiceDep,
+    LocalFilesServiceDep,
+    JellyfinLibraryServiceDep,
+    LastFmRepositoryDep,
+    LastFmAuthServiceDep,
+    ScrobbleServiceDep,
+    PlaylistRepositoryDep,
+    PlaylistServiceDep,
+    NavidromeRepositoryDep,
+    NavidromeLibraryServiceDep,
+    NavidromePlaybackServiceDep,
+    CacheStatusServiceDep,
+)
+
+from .cleanup import (  # noqa: F401
+    init_app_state,
+    cleanup_app_state,
+    clear_lastfm_dependent_caches,
+    clear_listenbrainz_dependent_caches,
+)
+
+from ._registry import clear_all_singletons, _singleton_registry  # noqa: F401

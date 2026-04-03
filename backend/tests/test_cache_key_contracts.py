@@ -1,0 +1,104 @@
+"""Contract tests — every key function must produce keys that start with its prefix constant."""
+
+import pytest
+
+from infrastructure.cache.cache_keys import (
+    LIDARR_PREFIX,
+    LIDARR_REQUESTED_PREFIX,
+    MB_ALBUM_SEARCH_PREFIX,
+    MB_ARTIST_DETAIL_PREFIX,
+    MB_ARTIST_SEARCH_PREFIX,
+    MB_RELEASE_DETAIL_PREFIX,
+    MB_RG_DETAIL_PREFIX,
+    PREFERENCES_PREFIX,
+    WIKIDATA_IMAGE_PREFIX,
+    WIKIDATA_URL_PREFIX,
+    WIKIPEDIA_PREFIX,
+    lidarr_artist_mbids_key,
+    lidarr_library_albums_key,
+    lidarr_library_artists_key,
+    lidarr_library_grouped_key,
+    lidarr_library_mbids_key,
+    lidarr_raw_albums_key,
+    lidarr_requested_mbids_key,
+    lidarr_status_key,
+    mb_album_search_key,
+    mb_artist_detail_key,
+    mb_artist_search_key,
+    mb_release_group_key,
+    mb_release_key,
+    preferences_key,
+    wikidata_artist_image_key,
+    wikidata_url_key,
+    wikipedia_extract_key,
+)
+
+
+@pytest.mark.parametrize(
+    "generated_key, expected_prefix",
+    [
+        (mb_artist_search_key("test", 10, 0), MB_ARTIST_SEARCH_PREFIX),
+        (mb_artist_detail_key("abc-123"), MB_ARTIST_DETAIL_PREFIX),
+        (mb_album_search_key("test", 10, 0), MB_ALBUM_SEARCH_PREFIX),
+        (mb_release_group_key("abc"), MB_RG_DETAIL_PREFIX),
+        (mb_release_key("abc"), MB_RELEASE_DETAIL_PREFIX),
+        (lidarr_library_albums_key(), LIDARR_PREFIX),
+        (lidarr_library_albums_key(include_unmonitored=True), LIDARR_PREFIX),
+        (lidarr_library_artists_key(), LIDARR_PREFIX),
+        (lidarr_library_mbids_key(), LIDARR_PREFIX),
+        (lidarr_artist_mbids_key(), LIDARR_PREFIX),
+        (lidarr_raw_albums_key(), LIDARR_PREFIX),
+        (lidarr_library_grouped_key(), LIDARR_PREFIX),
+        (lidarr_requested_mbids_key(), LIDARR_REQUESTED_PREFIX),
+        (lidarr_status_key(), LIDARR_PREFIX),
+        (wikidata_artist_image_key("Q123"), WIKIDATA_IMAGE_PREFIX),
+        (wikidata_url_key("artist-1"), WIKIDATA_URL_PREFIX),
+        (wikipedia_extract_key("https://en.wikipedia.org/wiki/Test"), WIKIPEDIA_PREFIX),
+        (preferences_key(), PREFERENCES_PREFIX),
+    ],
+    ids=[
+        "mb_artist_search",
+        "mb_artist_detail",
+        "mb_album_search",
+        "mb_release_group",
+        "mb_release",
+        "lidarr_library_albums_monitored",
+        "lidarr_library_albums_all",
+        "lidarr_library_artists",
+        "lidarr_library_mbids",
+        "lidarr_artist_mbids",
+        "lidarr_raw_albums",
+        "lidarr_library_grouped",
+        "lidarr_requested_mbids",
+        "lidarr_status",
+        "wikidata_image",
+        "wikidata_url",
+        "wikipedia_extract",
+        "preferences",
+    ],
+)
+def test_key_starts_with_prefix(generated_key: str, expected_prefix: str):
+    assert generated_key.startswith(expected_prefix), (
+        f"Key {generated_key!r} does not start with prefix {expected_prefix!r}"
+    )
+
+
+@pytest.mark.parametrize(
+    "group_fn",
+    [
+        pytest.param("musicbrainz_prefixes", id="musicbrainz"),
+        pytest.param("listenbrainz_prefixes", id="listenbrainz"),
+        pytest.param("lastfm_prefixes", id="lastfm"),
+        pytest.param("home_prefixes", id="home"),
+    ],
+)
+def test_invalidation_groups_return_list_of_strings(group_fn: str):
+    from infrastructure.cache import cache_keys
+
+    fn = getattr(cache_keys, group_fn)
+    result = fn()
+    assert isinstance(result, list)
+    assert len(result) > 0, f"{group_fn}() returned an empty list"
+    assert all(isinstance(p, str) for p in result), (
+        f"{group_fn}() contains non-string entries"
+    )

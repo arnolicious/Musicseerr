@@ -1,0 +1,103 @@
+<script lang="ts">
+	import type { AdvancedSettingsForm } from './advanced-settings-types';
+	import SettingsNumberField from './SettingsNumberField.svelte';
+
+	let { data = $bindable() }: { data: AdvancedSettingsForm } = $props();
+</script>
+
+<h4 class="font-medium text-sm text-base-content/70 mb-3">Network & HTTP</h4>
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4 pt-2">
+	<SettingsNumberField
+		label="Request Timeout"
+		description="Default: 10s"
+		bind:value={data.http_timeout}
+		min={5}
+		max={60}
+		unit="sec"
+	/>
+	<SettingsNumberField
+		label="Connect Timeout"
+		description="Default: 5s"
+		bind:value={data.http_connect_timeout}
+		min={1}
+		max={30}
+		unit="sec"
+	/>
+	<SettingsNumberField
+		label="Max Connections"
+		description="Pool size (default: 200)"
+		bind:value={data.http_max_connections}
+		min={50}
+		max={500}
+		step={10}
+	/>
+</div>
+<div class="divider my-4"></div>
+<h4 class="font-medium text-sm text-base-content/70 mb-3">Batch Processing</h4>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+	<SettingsNumberField
+		label="Artist Image Concurrency"
+		description="Parallel image fetches (default: 5)"
+		bind:value={data.batch_artist_images}
+		min={1}
+		max={20}
+	/>
+	<SettingsNumberField
+		label="Album Concurrency"
+		description="Parallel album fetches (default: 3)"
+		bind:value={data.batch_albums}
+		min={1}
+		max={20}
+	/>
+	<SettingsNumberField
+		label="Artist Batch Delay"
+		description="Default: 0.5s"
+		bind:value={data.delay_artist}
+		min={0}
+		max={5}
+		step={0.1}
+		unit="sec"
+	/>
+	<SettingsNumberField
+		label="Album Batch Delay"
+		description="Default: 1.0s"
+		bind:value={data.delay_albums}
+		min={0}
+		max={5}
+		step={0.1}
+		unit="sec"
+	/>
+	<SettingsNumberField
+		label="Discovery Warm Interval"
+		description="Periodic background refresh (default: 240 min)"
+		bind:value={data.artist_discovery_warm_interval}
+		min={5}
+		max={10080}
+		unit="min"
+	/>
+	<SettingsNumberField
+		label="Discovery Warm Delay"
+		description="Delay between artists in periodic warm (default: 0.5s)"
+		bind:value={data.artist_discovery_warm_delay}
+		min={0}
+		max={5}
+		step={0.1}
+		unit="sec"
+	/>
+	<SettingsNumberField
+		label="Discovery Precache Delay"
+		description="Delay between artists during library sync precache (default: 0.3s)"
+		bind:value={data.artist_discovery_precache_delay}
+		min={0}
+		max={5}
+		step={0.1}
+		unit="sec"
+	/>
+	<SettingsNumberField
+		label="MusicBrainz Searches"
+		description="Parallel API requests (default: 3)"
+		bind:value={data.musicbrainz_concurrent_searches}
+		min={2}
+		max={5}
+	/>
+</div>

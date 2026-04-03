@@ -1,0 +1,302 @@
+import asyncio
+import logging
+import sqlite3
+import threading
+from datetime import datetime, timezone
+from pathlib import Path
+
+import msgspec
+
+logger = logging.getLogger(__name__)
+
+
+class RequestHistoryRecord(msgspec.Struct):
+    musicbrainz_id: str
+    artist_name: str
+    album_title: str
+    requested_at: str
+    status: str
+    artist_mbid: str | None = None
+    year: int | None = None
+    cover_url: str | None = None
+    completed_at: str | None = None
+    lidarr_album_id: int | None = None
+
+
+class RequestHistoryStore:
+    _ACTIVE_STATUSES = ("pending", "downloading")
+
+    def __init__(self, db_path: Path, write_lock: threading.Lock | None = None):
+        self.db_path = Path(db_path)
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._write_lock = write_lock or threading.Lock()
+        with self._write_lock:
+            self._ensure_tables()
+
+    def _connect(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        return conn
+
+    def _ensure_tables(self) -> None:
+        conn = self._connect()
+        try:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS request_history (
+                    musicbrainz_id_lower TEXT PRIMARY KEY,
+                    musicbrainz_id TEXT NOT NULL,
+                    artist_name TEXT NOT NULL,
+                    album_title TEXT NOT NULL,
+                    artist_mbid TEXT,
+                    year INTEGER,
+                    cover_url TEXT,
+                    requested_at TEXT NOT NULL,
+                    completed_at TEXT,
+                    status TEXT NOT NULL,
+                    lidarr_album_id INTEGER
+                )
+                """
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_request_history_status_requested_at ON request_history(status, requested_at DESC)"
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def _execute(self, operation, write: bool):
+        if write:
+            with self._write_lock:
+                conn = self._connect()
+                try:
+                    result = operation(conn)
+                    conn.commit()
+                    return result
+                finally:
+                    conn.close()
+
+        conn = self._connect()
+        try:
+            return operation(conn)
+        finally:
+            conn.close()
+
+    async def _read(self, operation):
+        return await asyncio.to_thread(self._execute, operation, False)
+
+    async def _write(self, operation):
+        return await asyncio.to_thread(self._execute, operation, True)
+
+    @staticmethod
+    def _row_to_record(row: sqlite3.Row | None) -> RequestHistoryRecord | None:
+        if row is None:
+            return None
+        return RequestHistoryRecord(
+            musicbrainz_id=row["musicbrainz_id"],
+            artist_name=row["artist_name"],
+            album_title=row["album_title"],
+            artist_mbid=row["artist_mbid"],
+            year=row["year"],
+            cover_url=row["cover_url"],
+            requested_at=row["requested_at"],
+            completed_at=row["completed_at"],
+            status=row["status"],
+            lidarr_album_id=row["lidarr_album_id"],
+        )
+
+    async def async_record_request(
+        self,
+        musicbrainz_id: str,
+        artist_name: str,
+        album_title: str,
+        year: int | None = None,
+        cover_url: str | None = None,
+        artist_mbid: str | None = None,
+        lidarr_album_id: int | None = None,
+    ) -> None:
+        requested_at = datetime.now(timezone.utc).isoformat()
+        normalized_mbid = musicbrainz_id.lower()
+
+        def operation(conn: sqlite3.Connection) -> None:
+            conn.execute(
+                """
+                INSERT INTO request_history (
+                    musicbrainz_id_lower, musicbrainz_id, artist_name, album_title,
+                    artist_mbid, year, cover_url, requested_at, completed_at, status, lidarr_album_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 'pending', ?)
+                ON CONFLICT(musicbrainz_id_lower) DO UPDATE SET
+                    musicbrainz_id = excluded.musicbrainz_id,
+                    artist_name = excluded.artist_name,
+                    album_title = excluded.album_title,
+                    artist_mbid = excluded.artist_mbid,
+                    year = excluded.year,
+                    cover_url = COALESCE(excluded.cover_url, request_history.cover_url),
+                    requested_at = excluded.requested_at,
+                    completed_at = NULL,
+                    status = 'pending',
+                    lidarr_album_id = COALESCE(excluded.lidarr_album_id, request_history.lidarr_album_id)
+                """,
+                (
+                    normalized_mbid,
+                    musicbrainz_id,
+                    artist_name,
+                    album_title,
+                    artist_mbid,
+                    year,
+                    cover_url,
+                    requested_at,
+                    lidarr_album_id,
+                ),
+            )
+
+        await self._write(operation)
+
+    async def async_get_record(self, musicbrainz_id: str) -> RequestHistoryRecord | None:
+        normalized_mbid = musicbrainz_id.lower()
+
+        def operation(conn: sqlite3.Connection) -> RequestHistoryRecord | None:
+            row = conn.execute(
+                "SELECT * FROM request_history WHERE musicbrainz_id_lower = ?",
+                (normalized_mbid,),
+            ).fetchone()
+            return self._row_to_record(row)
+
+        return await self._read(operation)
+
+    async def async_get_active_requests(self) -> list[RequestHistoryRecord]:
+        def operation(conn: sqlite3.Connection) -> list[RequestHistoryRecord]:
+            rows = conn.execute(
+                "SELECT * FROM request_history WHERE status IN (?, ?) ORDER BY requested_at DESC",
+                self._ACTIVE_STATUSES,
+            ).fetchall()
+            return [record for row in rows if (record := self._row_to_record(row)) is not None]
+
+        return await self._read(operation)
+
+    async def async_get_active_count(self) -> int:
+        def operation(conn: sqlite3.Connection) -> int:
+            row = conn.execute(
+                "SELECT COUNT(*) AS count FROM request_history WHERE status IN (?, ?)",
+                self._ACTIVE_STATUSES,
+            ).fetchone()
+            return int(row["count"] if row is not None else 0)
+
+        return await self._read(operation)
+
+    async def async_get_history(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        status_filter: str | None = None,
+        sort: str | None = None,
+    ) -> tuple[list[RequestHistoryRecord], int]:
+        safe_page = max(page, 1)
+        safe_page_size = max(page_size, 1)
+        offset = (safe_page - 1) * safe_page_size
+
+        _SORT_MAP = {
+            "newest": "requested_at DESC",
+            "oldest": "requested_at ASC",
+            "status": "status ASC, requested_at DESC",
+        }
+        order_clause = _SORT_MAP.get(sort or "", "requested_at DESC")
+
+        def operation(conn: sqlite3.Connection) -> tuple[list[RequestHistoryRecord], int]:
+            params: tuple[object, ...]
+            where_clause = ""
+            if status_filter:
+                where_clause = "WHERE status = ?"
+                params = (status_filter,)
+            else:
+                params = ()
+
+            total_row = conn.execute(
+                f"SELECT COUNT(*) AS count FROM request_history {where_clause}",
+                params,
+            ).fetchone()
+            rows = conn.execute(
+                f"SELECT * FROM request_history {where_clause} ORDER BY {order_clause} LIMIT ? OFFSET ?",
+                params + (safe_page_size, offset),
+            ).fetchall()
+            records = [record for row in rows if (record := self._row_to_record(row)) is not None]
+            total = int(total_row["count"] if total_row is not None else 0)
+            return records, total
+
+        return await self._read(operation)
+
+    async def async_update_status(
+        self,
+        musicbrainz_id: str,
+        status: str,
+        completed_at: str | None = None,
+    ) -> None:
+        normalized_mbid = musicbrainz_id.lower()
+
+        def operation(conn: sqlite3.Connection) -> None:
+            if status in self._ACTIVE_STATUSES and completed_at is None:
+                conn.execute(
+                    "UPDATE request_history SET status = ?, completed_at = NULL WHERE musicbrainz_id_lower = ?",
+                    (status, normalized_mbid),
+                )
+                return
+
+            conn.execute(
+                "UPDATE request_history SET status = ?, completed_at = COALESCE(?, completed_at) WHERE musicbrainz_id_lower = ?",
+                (status, completed_at, normalized_mbid),
+            )
+
+        await self._write(operation)
+
+    async def async_update_cover_url(self, musicbrainz_id: str, cover_url: str) -> None:
+        normalized_mbid = musicbrainz_id.lower()
+
+        def operation(conn: sqlite3.Connection) -> None:
+            conn.execute(
+                "UPDATE request_history SET cover_url = ? WHERE musicbrainz_id_lower = ?",
+                (cover_url, normalized_mbid),
+            )
+
+        await self._write(operation)
+
+    async def async_update_lidarr_album_id(self, musicbrainz_id: str, lidarr_album_id: int) -> None:
+        normalized_mbid = musicbrainz_id.lower()
+
+        def operation(conn: sqlite3.Connection) -> None:
+            conn.execute(
+                "UPDATE request_history SET lidarr_album_id = ? WHERE musicbrainz_id_lower = ?",
+                (lidarr_album_id, normalized_mbid),
+            )
+
+        await self._write(operation)
+
+    async def async_delete_record(self, musicbrainz_id: str) -> bool:
+        normalized_mbid = musicbrainz_id.lower()
+
+        def operation(conn: sqlite3.Connection) -> bool:
+            cursor = conn.execute(
+                "DELETE FROM request_history WHERE musicbrainz_id_lower = ?",
+                (normalized_mbid,),
+            )
+            return cursor.rowcount > 0
+
+        return await self._write(operation)
+
+    async def prune_old_terminal_requests(self, days: int) -> int:
+        """Delete terminal requests older than `days` days. Active requests are never touched."""
+        import time as _time
+        from datetime import timezone
+        cutoff_iso = datetime.fromtimestamp(_time.time() - days * 86400, tz=timezone.utc).isoformat()
+        terminal_statuses = ("imported", "failed", "cancelled", "incomplete")
+
+        def operation(conn: sqlite3.Connection) -> int:
+            cursor = conn.execute(
+                f"DELETE FROM request_history WHERE status IN ({','.join('?' for _ in terminal_statuses)}) "
+                "AND COALESCE(completed_at, requested_at) < ?",
+                (*terminal_statuses, cutoff_iso),
+            )
+            return cursor.rowcount
+
+        return await self._write(operation)

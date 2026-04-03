@@ -1,0 +1,170 @@
+"""Integration tests — SettingsService invalidation methods clear the right cache keys."""
+
+import pytest
+
+from infrastructure.cache.cache_keys import (
+    ALBUM_INFO_PREFIX,
+    ARTIST_INFO_PREFIX,
+    DISCOVER_RESPONSE_PREFIX,
+    GENRE_ARTIST_PREFIX,
+    HOME_RESPONSE_PREFIX,
+    JELLYFIN_PREFIX,
+    LB_PREFIX,
+    LFM_PREFIX,
+    LOCAL_FILES_PREFIX,
+    SOURCE_RESOLUTION_PREFIX,
+    musicbrainz_prefixes,
+)
+from infrastructure.cache.memory_cache import InMemoryCache
+from services.settings_service import SettingsService
+
+
+async def _build_service() -> tuple[SettingsService, InMemoryCache]:
+    cache = InMemoryCache(max_entries=500)
+    service = SettingsService(preferences_service=None, cache=cache)
+    return service, cache
+
+
+async def _populate(cache: InMemoryCache, keys: list[str]) -> None:
+    for key in keys:
+        await cache.set(key, "v", ttl_seconds=300)
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_clear_musicbrainz_cache():
+    service, cache = await _build_service()
+
+    mb_keys = [f"{p}dummy" for p in musicbrainz_prefixes()]
+    extra_keys = [f"{ARTIST_INFO_PREFIX}art1", f"{ALBUM_INFO_PREFIX}alb1"]
+    unrelated = ["unrelated:key"]
+    await _populate(cache, mb_keys + extra_keys + unrelated)
+
+    cleared = await service.clear_caches_for_preference_change()
+
+    assert cleared == len(mb_keys) + len(extra_keys)
+    for key in mb_keys + extra_keys:
+        assert await cache.get(key) is None
+    assert await cache.get("unrelated:key") == "v"
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_clear_home_cache():
+    service, cache = await _build_service()
+
+    home_keys = [
+        f"{HOME_RESPONSE_PREFIX}page1",
+        f"{DISCOVER_RESPONSE_PREFIX}rock",
+        f"{GENRE_ARTIST_PREFIX}pop",
+        f"{JELLYFIN_PREFIX}lib",
+        f"{LB_PREFIX}stats",
+        f"{LFM_PREFIX}chart",
+    ]
+    unrelated = ["unrelated:key"]
+    await _populate(cache, home_keys + unrelated)
+
+    cleared = await service.clear_home_cache()
+
+    assert cleared == len(home_keys)
+    for key in home_keys:
+        assert await cache.get(key) is None
+    assert await cache.get("unrelated:key") == "v"
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_clear_source_resolution_cache():
+    """SOURCE_RESOLUTION_PREFIX = 'source_resolution' (no trailing colon)
+    must match both 'source_resolution:x' and 'source_resolution_tracks:y'."""
+    service, cache = await _build_service()
+
+    sr_keys = [
+        f"{SOURCE_RESOLUTION_PREFIX}:track1",
+        f"{SOURCE_RESOLUTION_PREFIX}_tracks:track2",
+    ]
+    unrelated = ["unrelated:key"]
+    await _populate(cache, sr_keys + unrelated)
+
+    cleared = await service.clear_source_resolution_cache()
+
+    assert cleared == len(sr_keys)
+    for key in sr_keys:
+        assert await cache.get(key) is None
+    assert await cache.get("unrelated:key") == "v"
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_clear_local_files_cache():
+    service, cache = await _build_service()
+
+    lf_keys = [f"{LOCAL_FILES_PREFIX}scan1", f"{LOCAL_FILES_PREFIX}scan2"]
+    unrelated = ["unrelated:key"]
+    await _populate(cache, lf_keys + unrelated)
+
+    cleared = await service.clear_local_files_cache()
+
+    assert cleared == len(lf_keys)
+    for key in lf_keys:
+        assert await cache.get(key) is None
+    assert await cache.get("unrelated:key") == "v"
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_unrelated_keys_survive():
+    """Clearing one domain must not affect keys from other domains."""
+    service, cache = await _build_service()
+
+    survivor_keys = [
+        f"{LOCAL_FILES_PREFIX}scan",
+        f"{SOURCE_RESOLUTION_PREFIX}:t1",
+        f"{JELLYFIN_PREFIX}lib",
+    ]
+    target_keys = [f"{p}x" for p in musicbrainz_prefixes()]
+    await _populate(cache, survivor_keys + target_keys)
+
+    await service.clear_caches_for_preference_change()
+
+    for key in survivor_keys:
+        assert await cache.get(key) == "v", f"Key {key!r} was incorrectly cleared"
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_update_home_settings_route_clears_cache():
+    """The update_home_settings route must call clear_home_cache."""
+    from unittest.mock import AsyncMock, MagicMock
+    from api.v1.routes.settings import update_home_settings
+
+    mock_prefs = MagicMock()
+    mock_settings_svc = AsyncMock()
+    mock_settings_svc.clear_home_cache = AsyncMock(return_value=5)
+    mock_settings_obj = MagicMock()
+
+    result = await update_home_settings(
+        settings=mock_settings_obj,
+        preferences_service=mock_prefs,
+        settings_service=mock_settings_svc,
+    )
+
+    mock_prefs.save_home_settings.assert_called_once_with(mock_settings_obj)
+    mock_settings_svc.clear_home_cache.assert_awaited_once()
+    assert result is mock_settings_obj
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_youtube_settings_change_clears_home_cache():
+    """on_youtube_settings_changed should reset singleton AND clear home caches."""
+    from unittest.mock import patch, MagicMock
+
+    service, cache = await _build_service()
+
+    home_keys = [
+        f"{HOME_RESPONSE_PREFIX}page1",
+        f"{DISCOVER_RESPONSE_PREFIX}rock",
+    ]
+    await _populate(cache, home_keys)
+
+    mock_repo_fn = MagicMock()
+    with patch("core.dependencies.get_youtube_repo", mock_repo_fn):
+        await service.on_youtube_settings_changed()
+
+    mock_repo_fn.cache_clear.assert_called_once()
+    for key in home_keys:
+        assert await cache.get(key) is None

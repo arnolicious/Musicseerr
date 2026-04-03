@@ -1,0 +1,111 @@
+"""Tier 2 — Cache layer, persistence stores, and foundation providers."""
+
+from __future__ import annotations
+
+import logging
+import threading
+
+from core.config import get_settings
+from infrastructure.cache.memory_cache import InMemoryCache, CacheInterface
+from infrastructure.cache.disk_cache import DiskMetadataCache
+from infrastructure.persistence import (
+    LibraryDB,
+    GenreIndex,
+    YouTubeStore,
+    MBIDStore,
+    SyncStateStore,
+)
+
+from ._registry import singleton
+
+logger = logging.getLogger(__name__)
+
+
+@singleton
+def get_cache() -> CacheInterface:
+    preferences_service = get_preferences_service()
+    advanced = preferences_service.get_advanced_settings()
+    max_entries = advanced.memory_cache_max_entries
+    logger.info(f"Initialized RAM cache with max {max_entries} entries")
+    return InMemoryCache(max_entries=max_entries)
+
+
+@singleton
+def get_disk_cache() -> DiskMetadataCache:
+    settings = get_settings()
+    preferences_service = get_preferences_service()
+    advanced = preferences_service.get_advanced_settings()
+    cache_dir = settings.cache_dir / "metadata"
+    logger.info(f"Initialized disk metadata cache at {cache_dir}")
+    return DiskMetadataCache(
+        base_path=cache_dir,
+        recent_metadata_max_size_mb=advanced.recent_metadata_max_size_mb,
+        recent_covers_max_size_mb=advanced.recent_covers_max_size_mb,
+        persistent_metadata_ttl_hours=advanced.persistent_metadata_ttl_hours,
+    )
+
+
+# -- Persistence store providers (shared write lock + DB path) --
+
+@singleton
+def get_persistence_write_lock() -> threading.Lock:
+    return threading.Lock()
+
+
+@singleton
+def get_library_db() -> LibraryDB:
+    settings = get_settings()
+    lock = get_persistence_write_lock()
+    return LibraryDB(db_path=settings.library_db_path, write_lock=lock)
+
+
+@singleton
+def get_genre_index() -> GenreIndex:
+    settings = get_settings()
+    lock = get_persistence_write_lock()
+    return GenreIndex(db_path=settings.library_db_path, write_lock=lock)
+
+
+@singleton
+def get_youtube_store() -> YouTubeStore:
+    settings = get_settings()
+    lock = get_persistence_write_lock()
+    return YouTubeStore(db_path=settings.library_db_path, write_lock=lock)
+
+
+@singleton
+def get_mbid_store() -> MBIDStore:
+    settings = get_settings()
+    lock = get_persistence_write_lock()
+    return MBIDStore(db_path=settings.library_db_path, write_lock=lock)
+
+
+@singleton
+def get_sync_state_store() -> SyncStateStore:
+    settings = get_settings()
+    lock = get_persistence_write_lock()
+    return SyncStateStore(db_path=settings.library_db_path, write_lock=lock)
+
+
+@singleton
+def get_preferences_service() -> "PreferencesService":
+    from services.preferences_service import PreferencesService
+
+    settings = get_settings()
+    return PreferencesService(settings)
+
+
+@singleton
+def get_cache_service() -> "CacheService":
+    from services.cache_service import CacheService
+
+    cache = get_cache()
+    library_db = get_library_db()
+    disk_cache = get_disk_cache()
+    return CacheService(cache, library_db, disk_cache)
+
+
+def get_cache_status_service() -> "CacheStatusService":
+    from services.cache_status_service import CacheStatusService
+
+    return CacheStatusService()

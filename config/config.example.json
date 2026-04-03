@@ -1,0 +1,17 @@
+{
+  "lidarr_url": "",
+  "lidarr_api_key": "",
+  "jellyfin_url": "",
+  "contact_email": "",
+  "quality_profile_id": null,
+  "metadata_profile_id": null,
+  "root_folder_path": "",
+  "port": 4243,
+  "audiodb_api_key": "",
+  "audiodb_premium": false,
+  "user_preferences": {
+    "primary_types": ["album", "ep", "single"],
+    "secondary_types": ["studio"],
+    "release_statuses": ["official"]
+  }
+}

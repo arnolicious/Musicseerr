@@ -1,0 +1,36 @@
+name: "\u2728 Feature Request"
+description: Suggest an idea for MusicSeerr
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening a feature request, please search [existing issues](https://github.com/habirabbu/musicseerr/issues) to check if it's already been suggested.
+
+        For general discussion, use [Discord](https://discord.gg/f98bFfsPuB).
+  - type: textarea
+    id: description
+    attributes:
+      label: What would you like?
+      description: A clear description of what you want MusicSeerr to do. If this is related to a problem, describe the problem too.
+    validations:
+      required: true
+  - type: textarea
+    id: desired-behavior
+    attributes:
+      label: How should it work?
+      description: Describe the behaviour you'd expect from this feature.
+    validations:
+      required: true
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Screenshots, mockups, links to similar features in other apps, or anything else that helps explain what you're after.
+  - type: checkboxes
+    id: search-existing
+    attributes:
+      label: Duplicate check
+      options:
+        - label: I have searched existing issues and this hasn't been requested before.
+          required: true
