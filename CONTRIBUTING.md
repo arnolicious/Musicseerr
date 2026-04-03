@@ -75,4 +75,4 @@ You're still responsible for understanding and testing the code you submit.
 
 ## Questions?
 
-Open a thread in [Discord](https://discord.gg/f98bFfsPuB) or start a [GitHub Discussion](https://github.com/habirabbu/musicseerr/discussions).
+Open a thread in [Discord](https://discord.gg/B5suDg7gu2) or start a [GitHub Discussion](https://github.com/habirabbu/musicseerr/discussions).

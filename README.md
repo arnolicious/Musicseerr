@@ -4,7 +4,7 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-ghcr.io-blue?logo=docker)](https://github.com/habirabbu/musicseerr/pkgs/container/musicseerr)
-[![Discord](https://img.shields.io/discord/1356702267809808404?label=discord&logo=discord&logoColor=white)](https://discord.gg/f98bFfsPuB)
+[![Discord](https://img.shields.io/discord/1356702267809808404?label=discord&logo=discord&logoColor=white)](https://discord.gg/B5suDg7gu2)
 [![Docs](https://img.shields.io/badge/docs-musicseerr.com-blue)](https://musicseerr.com/)
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/M4M41URGJO)
@@ -304,7 +304,7 @@ make frontend-browser-install
 
 Documentation is at [musicseerr.com](https://musicseerr.com/).
 
-For questions, help, or just to chat, join the [Discord](https://discord.gg/f98bFfsPuB). Bug reports and feature requests go on [GitHub Issues](https://github.com/habirabbu/musicseerr/issues).
+For questions, help, or just to chat, join the [Discord](https://discord.gg/B5suDg7gu2). Bug reports and feature requests go on [GitHub Issues](https://github.com/habirabbu/musicseerr/issues).
 
 If you find MusicSeerr useful, consider supporting development:
 
