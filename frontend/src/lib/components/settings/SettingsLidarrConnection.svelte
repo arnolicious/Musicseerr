@@ -82,7 +82,7 @@
 						type="url"
 						bind:value={form.data.lidarr_url}
 						class="input input-bordered w-full"
-						placeholder="http://localhost:8686"
+						placeholder="http://lidarr:8686 or http://<host-ip>:8686"
 					/>
 				</div>
 

@@ -244,10 +244,6 @@ def with_retry(
                     last_exception = e
                     elapsed_ms = int((time.time() - attempt_start) * 1000)
                     
-                    is_non_breaking = isinstance(e, non_breaking_exceptions) if non_breaking_exceptions else False
-                    if circuit_breaker and (not is_non_breaking or circuit_breaker.state == CircuitState.HALF_OPEN):
-                        await circuit_breaker.arecord_failure()
-                    
                     if attempt >= max_attempts:
                         total_elapsed_ms = int((time.time() - start_time) * 1000)
                         logger.error(
@@ -295,6 +291,11 @@ def with_retry(
                     
                     await asyncio.sleep(delay)
             
+            if circuit_breaker and last_exception:
+                is_non_breaking = isinstance(last_exception, non_breaking_exceptions) if non_breaking_exceptions else False
+                if not is_non_breaking or circuit_breaker.state == CircuitState.HALF_OPEN:
+                    await circuit_breaker.arecord_failure()
+
             raise last_exception
         
         return wrapper

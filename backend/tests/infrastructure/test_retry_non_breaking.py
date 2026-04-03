@@ -68,10 +68,15 @@ async def test_breaking_exception_still_trips_circuit():
         call_count += 1
         raise _ServiceDown("down")
 
+    # Each call records one failure after all retries exhausted (not per retry)
     with pytest.raises(_ServiceDown):
         await fail()
+    assert cb.failure_count == 1
+    assert cb.state == CircuitState.CLOSED
 
-    assert call_count == 3
+    call_count = 0
+    with pytest.raises(_ServiceDown):
+        await fail()
     assert cb.state == CircuitState.OPEN
 
 

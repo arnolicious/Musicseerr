@@ -132,10 +132,19 @@ class SettingsService:
                 root_folders=root_folders
             )
         except ExternalServiceError as e:
-            logger.warning(f"Lidarr connection test failed: {e}")
+            detail = str(e)
+            logger.warning(f"Lidarr connection test failed: {detail}")
+            if "No address associated with hostname" in detail or "Name or service not known" in detail:
+                hint = "DNS resolution failed — check the hostname is reachable from inside the container"
+            elif "Connection refused" in detail:
+                hint = "Connection refused — check the port and that Lidarr is running"
+            elif "timed out" in detail.lower() or "timeout" in detail.lower():
+                hint = "Connection timed out — check network/firewall settings"
+            else:
+                hint = detail
             return LidarrVerifyResponse(
                 success=False,
-                message="Couldn't reach Lidarr",
+                message=f"Couldn't reach Lidarr: {hint}",
                 quality_profiles=[],
                 metadata_profiles=[],
                 root_folders=[]
@@ -144,7 +153,7 @@ class SettingsService:
             logger.exception(f"Failed to verify Lidarr connection: {e}")
             return LidarrVerifyResponse(
                 success=False,
-                message="Couldn't finish the connection test",
+                message=f"Couldn't finish the connection test: {e}",
                 quality_profiles=[],
                 metadata_profiles=[],
                 root_folders=[]
