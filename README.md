@@ -279,8 +279,8 @@ uvicorn main:app --reload --port 8688
 
 ```bash
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 ### Tests

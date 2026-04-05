@@ -10,7 +10,7 @@ BACKEND_VENV_PYTHON := $(BACKEND_VENV_DIR)/bin/python
 BACKEND_VENV_STAMP := $(BACKEND_VENV_DIR)/.deps-stamp
 BACKEND_VIRTUALENV_ZIPAPP := $(BACKEND_DIR)/.virtualenv.pyz
 PYTHON ?= python3
-NPM ?= npm
+NPM ?= pnpm
 
 .PHONY: help backend-venv backend-lint backend-test backend-test-audiodb backend-test-audiodb-prewarm backend-test-audiodb-settings backend-test-coverart-audiodb backend-test-audiodb-phase8 backend-test-audiodb-phase9 backend-test-exception-handling backend-test-playlist backend-test-multidisc backend-test-performance backend-test-security backend-test-config-validation backend-test-home backend-test-home-genre backend-test-infra-hardening backend-test-library-pagination backend-test-search-top-result test-audiodb-all frontend-install frontend-build frontend-check frontend-lint frontend-test frontend-test-queuehelpers frontend-test-album-page frontend-test-playlist-detail frontend-test-audiodb-images frontend-browser-install project-map rebuild test check lint ci
 

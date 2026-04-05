@@ -9,7 +9,7 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
 # Install pnpm
-RUN npm install -g pnpm@latest-10
+RUN npm install -g pnpm@10.33.0
 
 COPY frontend/package.json ./
 COPY frontend/pnpm-lock.yaml ./

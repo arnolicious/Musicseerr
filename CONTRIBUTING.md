@@ -34,8 +34,8 @@ Frontend:
 
 ```bash
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 ### Running Tests
