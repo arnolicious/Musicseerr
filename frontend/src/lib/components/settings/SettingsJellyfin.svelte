@@ -89,7 +89,7 @@
 							{showApiKey ? 'Hide' : 'Show'}
 						</button>
 					</div>
-					<label class="label">
+					<label class="label" for="jellyfin-api-key">
 						<span class="label-text-alt text-base-content/50">Dashboard → API Keys → Create</span>
 					</label>
 				</div>
@@ -104,7 +104,7 @@
 							bind:value={form.data.user_id}
 							class="select select-bordered w-full"
 						>
-							{#each availableUsers as user}
+							{#each availableUsers as user (user.id)}
 								<option value={user.id}>{user.name}</option>
 							{/each}
 						</select>
@@ -121,10 +121,10 @@
 							class="input input-bordered w-full"
 							placeholder="Test connection to select user"
 						/>
-						<label class="label">
-							<span class="label-text-alt text-base-content/50"
-								>Test connection to load available users</span
-							>
+						<label class="label" for="jellyfin-user-id">
+							<span class="label-text-alt text-base-content/50">
+								Test connection to load available users
+							</span>
 						</label>
 					</div>
 				{/if}

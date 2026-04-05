@@ -104,7 +104,7 @@
 							{showApiKey ? 'Hide' : 'Show'}
 						</button>
 					</div>
-					<label class="label">
+					<label class="label" for="lidarr-api-key">
 						<span class="label-text-alt text-base-content/50">Settings → General → API Key</span>
 					</label>
 				</div>
@@ -119,7 +119,7 @@
 							bind:value={form.data.quality_profile_id}
 							class="select select-bordered w-full"
 						>
-							{#each verifyResult.quality_profiles as profile}
+							{#each verifyResult.quality_profiles as profile (profile.id)}
 								<option value={profile.id}>{profile.name}</option>
 							{/each}
 						</select>
@@ -134,7 +134,7 @@
 							bind:value={form.data.metadata_profile_id}
 							class="select select-bordered w-full"
 						>
-							{#each verifyResult.metadata_profiles as profile}
+							{#each verifyResult.metadata_profiles as profile (profile.id)}
 								<option value={profile.id}>{profile.name}</option>
 							{/each}
 						</select>
@@ -149,7 +149,7 @@
 							bind:value={form.data.root_folder_path}
 							class="select select-bordered w-full"
 						>
-							{#each verifyResult.root_folders as folder}
+							{#each verifyResult.root_folders as folder (folder.path)}
 								<option value={folder.path}>{folder.path}</option>
 							{/each}
 						</select>

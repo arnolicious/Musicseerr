@@ -32,8 +32,8 @@
 		</div>
 	{:else}
 		<HorizontalCarousel>
-			{#each artists as artist}
-				<a href={artistHref(artist.musicbrainz_id)} class="w-32 flex-shrink-0 cursor-pointer">
+			{#each artists as artist (artist.musicbrainz_id)}
+				<a href={artistHref(artist.musicbrainz_id)} class="w-32 shrink-0 cursor-pointer">
 					<div class="relative group">
 						<div
 							class="aspect-square rounded-full overflow-hidden transition-transform group-hover:scale-105"

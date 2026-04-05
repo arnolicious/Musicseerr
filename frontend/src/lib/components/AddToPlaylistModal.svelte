@@ -28,6 +28,7 @@
 	} from '$lib/api/playlists';
 	import type { PlaylistSummary } from '$lib/api/playlists';
 	import PlaylistMosaic from './PlaylistMosaic.svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	let dialogEl: HTMLDialogElement | undefined = $state();
 	let pendingTracks: QueueItem[] = [];
@@ -35,8 +36,8 @@
 	let playlists = $state<PlaylistSummary[]>([]);
 	let loading = $state(true);
 	let fetchError = $state<string | null>(null);
-	let addedSet = $state(new Set<string>());
-	let addingSet = $state(new Set<string>());
+	let addedSet = new SvelteSet<string>();
+	let addingSet = new SvelteSet<string>();
 	let membership = $state<Record<string, number[]>>({});
 	let newName = $state('');
 	let creating = $state(false);
@@ -58,8 +59,8 @@
 	export function open(items: QueueItem[]) {
 		pendingTracks = items;
 		trackCount = items.length;
-		addedSet = new Set();
-		addingSet = new Set();
+		addedSet.clear();
+		addingSet.clear();
 		membership = {};
 		newName = '';
 		fetchError = null;
@@ -102,17 +103,17 @@
 		if (addedSet.has(playlist.id) || addingSet.has(playlist.id)) return;
 		if (allTracksExist(playlist.id)) return;
 		if (pendingTracks.length === 0) return;
-		addingSet = new Set([...addingSet, playlist.id]);
+		addingSet.add(playlist.id);
 		try {
 			const existingIndices = new Set(membership[playlist.id] ?? []);
 			const tracksToAdd = pendingTracks.filter((_, i) => !existingIndices.has(i));
 			if (tracksToAdd.length === 0) {
-				addedSet = new Set([...addedSet, playlist.id]);
+				addedSet.add(playlist.id);
 				return;
 			}
 			const trackData = tracksToAdd.map(queueItemToTrackData);
 			await addTracksToPlaylist(playlist.id, trackData);
-			addedSet = new Set([...addedSet, playlist.id]);
+			addedSet.add(playlist.id);
 			const allIndices = Array.from({ length: trackCount }, (_, i) => i);
 			membership = { ...membership, [playlist.id]: allIndices };
 			playlists = playlists.map((p) =>
@@ -130,9 +131,7 @@
 		} catch {
 			showStatus("Couldn't add those tracks", 'error');
 		} finally {
-			const next = new Set(addingSet);
-			next.delete(playlist.id);
-			addingSet = next;
+			addingSet.delete(playlist.id);
 		}
 	}
 
@@ -144,7 +143,7 @@
 			const detail = await createPlaylist(name);
 			const trackData = pendingTracks.map(queueItemToTrackData);
 			await addTracksToPlaylist(detail.id, trackData);
-			addedSet = new Set([...addedSet, detail.id]);
+			addedSet.add(detail.id);
 			const allIndices = Array.from({ length: trackCount }, (_, i) => i);
 			membership = { ...membership, [detail.id]: allIndices };
 			playlists = [

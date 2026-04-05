@@ -6,23 +6,21 @@
 
 	let { onLaunch, source }: { onLaunch: () => void; source: MusicSource } = $props();
 
-	let hasCachedQueue = $state(false);
 	let bgStatus = $state<QueueBuildStatus>('unknown');
 
 	function recheckCachedQueue() {
 		const cached = getQueueCachedData(source);
-		hasCachedQueue = (cached?.data?.items?.length ?? 0) > 0;
+		return (cached?.data?.items?.length ?? 0) > 0;
 	}
 
-	$effect(() => {
-		source;
-		recheckCachedQueue();
+	let hasCachedQueue = $derived.by(() => {
+		return recheckCachedQueue();
 	});
 
 	$effect(() => {
 		const unsubStatus = discoverQueueStatusStore.subscribe((s) => {
 			bgStatus = s.status;
-			recheckCachedQueue();
+			hasCachedQueue = recheckCachedQueue();
 		});
 		return unsubStatus;
 	});
@@ -30,7 +28,7 @@
 	$effect(() => {
 		const unsubscribeCache = subscribeQueueCacheChanges((changedSource) => {
 			if (!changedSource || changedSource === source) {
-				recheckCachedQueue();
+				hasCachedQueue = recheckCachedQueue();
 			}
 		});
 		return unsubscribeCache;
@@ -46,7 +44,7 @@
 </script>
 
 <div
-	class="card card-border bg-gradient-to-br from-primary/10 via-secondary/8 to-accent/6 w-full shadow-sm relative overflow-hidden
+	class="card card-border bg-linear-to-br from-primary/10 via-secondary/8 to-accent/6 w-full shadow-sm relative overflow-hidden
 		{isReady ? 'animate-glow-pulse' : ''}"
 	style={isReady ? 'box-shadow: 0 0 25px rgba(174,213,242,0.2);' : ''}
 >
@@ -57,7 +55,7 @@
 	<div class="card-body items-center gap-5 py-12 text-center">
 		<div class="text-primary opacity-70">
 			{#if isBuilding && !hasCachedQueue}
-				<div class="flex items-end gap-[3px] h-10 w-10 justify-center pb-1">
+				<div class="flex items-end gap-0.75 h-10 w-10 justify-center pb-1">
 					<span class="w-1.5 bg-primary rounded-full animate-equalizer-1" style="height: 60%;"
 					></span>
 					<span class="w-1.5 bg-primary rounded-full animate-equalizer-2" style="height: 80%;"

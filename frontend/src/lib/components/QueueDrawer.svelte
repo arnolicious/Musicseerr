@@ -277,7 +277,7 @@
 						>
 							{#if isReorderable}
 								<button
-									class="flex-shrink-0 opacity-40 group-hover/item:opacity-70 focus:opacity-80 cursor-grab active:cursor-grabbing transition-opacity bg-transparent border-none p-0"
+									class="shrink-0 opacity-40 group-hover/item:opacity-70 focus:opacity-80 cursor-grab active:cursor-grabbing transition-opacity bg-transparent border-none p-0"
 									aria-label="Drag to reorder"
 									onkeydown={(e) => handleItemKeydown(e, displayPosition)}
 									onclick={(e) => e.stopPropagation()}
@@ -286,10 +286,10 @@
 									<GripVertical class="h-4 w-4" />
 								</button>
 							{:else}
-								<div class="flex-shrink-0 w-4 h-4"></div>
+								<div class="shrink-0 w-4 h-4"></div>
 							{/if}
 
-							<div class="flex-shrink-0 w-10 h-10 rounded overflow-hidden">
+							<div class="shrink-0 w-10 h-10 rounded overflow-hidden">
 								{#if coverUrl}
 									<img src={coverUrl} alt={item.albumName} class="w-full h-full object-cover" />
 								{:else}
@@ -307,11 +307,10 @@
 							</div>
 
 							{#if item.duration}
-								<span class="text-xs opacity-40 flex-shrink-0">{formatDuration(item.duration)}</span
-								>
+								<span class="text-xs opacity-40 shrink-0">{formatDuration(item.duration)}</span>
 							{/if}
 
-							<div class="flex-shrink-0">
+							<div class="shrink-0">
 								{#if item.sourceType === 'jellyfin'}
 									<span title="Jellyfin" style="color: rgb(var(--brand-jellyfin));">
 										<JellyfinIcon class="h-3.5 w-3.5" />
@@ -329,7 +328,7 @@
 								{/if}
 							</div>
 
-							<div class="flex-shrink-0 w-6">
+							<div class="shrink-0 w-6">
 								{#if isCurrent && playerStore.isPlaying}
 									<NowPlayingIndicator />
 								{:else}

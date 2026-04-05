@@ -27,7 +27,7 @@
 	let hasMore = $state(true);
 	let offset = 0;
 	const limit = 24;
-	let sentinel: HTMLElement = $state();
+	let sentinel = $state<HTMLElement>();
 	let showToast = $state(false);
 	let abortController: AbortController | null = null;
 	let enrichmentController: AbortController | null = null;
@@ -105,7 +105,8 @@
 				hasMore = false;
 			}
 
-			const newMbids: Set<string> = new Set();
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity
+			const newMbids = new Set<string>();
 			if (offset === 0 && albums.length > 0) {
 				const existingIds = new Set(albums.map((a) => a.musicbrainz_id));
 				const uniqueNewAlbums = newAlbums.filter((a: Album) => !existingIds.has(a.musicbrainz_id));
@@ -256,7 +257,7 @@
 			<div
 				class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
 			>
-				{#each Array(12) as _, i}
+				{#each Array(12) as _, i (`loading-album-${i}`)}
 					<AlbumCardSkeleton />
 				{/each}
 			</div>
@@ -266,7 +267,7 @@
 	{:else}
 		{#if topAlbum}
 			<div class="mb-4">
-				<SearchTopResult album={topAlbum} {enrichmentSource} />
+				<SearchTopResult album={topAlbum} />
 			</div>
 		{/if}
 		<div class="bg-base-200 rounded-box p-4">

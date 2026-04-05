@@ -88,6 +88,7 @@
 
 	let groupedLinks = $derived.by(() => {
 		const groups: Record<string, ExternalLink[]> = {};
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const seen = new Set<string>();
 
 		for (const link of links) {
@@ -113,7 +114,7 @@
 
 {#if groupedLinks.length > 0}
 	<div class="flex flex-wrap items-center gap-x-6 gap-y-3 mt-4">
-		{#each groupedLinks as group, i}
+		{#each groupedLinks as group, i (group.category)}
 			{#if i > 0}
 				<div class="hidden sm:block w-px h-6 bg-base-content/20"></div>
 			{/if}
@@ -121,7 +122,7 @@
 				<span class="text-xs font-semibold uppercase tracking-widest text-base-content/70 mr-1">
 					{group.label}
 				</span>
-				{#each group.links as link}
+				{#each group.links as link (link.type)}
 					<a
 						href={link.url}
 						target="_blank"
@@ -129,6 +130,7 @@
 						class="btn btn-ghost btn-circle btn-md tooltip tooltip-bottom"
 						data-tip={link.label}
 					>
+						<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 						{@html getLinkIcon(link.label)}
 					</a>
 				{/each}

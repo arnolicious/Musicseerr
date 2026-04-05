@@ -9,6 +9,7 @@
 	import AlbumImage from './AlbumImage.svelte';
 	import LibraryBadge from './LibraryBadge.svelte';
 	import LastFmPlaceholder from './LastFmPlaceholder.svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	interface Props {
 		albums: TopAlbum[];
@@ -18,16 +19,17 @@
 	}
 
 	let { albums, loading = false, configured = true, source = '' }: Props = $props();
-	let requestingIds = $state(new Set<string>());
 
-	let libraryMbids = $state(new Set<string>());
-	let requestedMbids = $state(new Set<string>());
+	let requestingIds = new SvelteSet<string>();
+
+	let libraryMbids = new SvelteSet<string>();
+	let requestedMbids = new SvelteSet<string>();
 	let storeInitialized = $state(false);
 
 	onMount(() => {
 		const unsubscribe = libraryStore.subscribe((state) => {
-			libraryMbids = new Set(state.mbidSet);
-			requestedMbids = new Set(state.requestedSet);
+			libraryMbids = new SvelteSet(state.mbidSet);
+			requestedMbids = new SvelteSet(state.requestedSet);
 			storeInitialized = state.initialized;
 		});
 		return unsubscribe;
@@ -54,7 +56,7 @@
 		if (!album.release_group_mbid) return;
 
 		const id = album.release_group_mbid;
-		requestingIds = new Set([...requestingIds, id]);
+		requestingIds.add(id);
 
 		try {
 			await requestAlbum(id, {
@@ -63,9 +65,7 @@
 				year: album.year ?? undefined
 			});
 		} finally {
-			const newSet = new Set(requestingIds);
-			newSet.delete(id);
-			requestingIds = newSet;
+			requestingIds.delete(id);
 		}
 	}
 </script>
@@ -75,7 +75,7 @@
 
 	{#if loading}
 		<div class="space-y-2">
-			{#each Array(10) as _}
+			{#each Array(10) as _, i (`skeleton-${i}`)}
 				<div class="flex items-center gap-3 p-2">
 					<div class="skeleton w-12 h-12 rounded"></div>
 					<div class="flex-1">
@@ -98,13 +98,13 @@
 		</div>
 	{:else}
 		<div class="space-y-1">
-			{#each albums as album}
+			{#each albums as album (album.title + album.artist_name)}
 				{#if album.release_group_mbid}
 					<a
 						href={albumHref(album.release_group_mbid)}
 						class="flex items-center gap-3 p-2 rounded-lg hover:bg-base-200 cursor-pointer transition-colors group"
 					>
-						<div class="w-12 h-12 flex-shrink-0 relative">
+						<div class="w-12 h-12 shrink-0 relative">
 							<AlbumImage
 								mbid={album.release_group_mbid}
 								alt={album.title}
@@ -146,7 +146,7 @@
 						{#if !isInLibrary(album) && !isRequested(album)}
 							<button
 								type="button"
-								class="btn btn-circle btn-sm opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 hover:scale-110 hover:brightness-110"
+								class="btn btn-circle btn-sm opacity-0 group-hover:opacity-100 transition-all shrink-0 hover:scale-110 hover:brightness-110"
 								style="background-color: {colors.accent}; border: none;"
 								onclick={(e) => {
 									e.stopPropagation();
@@ -176,9 +176,7 @@
 						{#if source === 'lastfm'}
 							<LastFmPlaceholder />
 						{:else}
-							<div
-								class="w-12 h-12 flex-shrink-0 bg-base-300 rounded flex items-center justify-center"
-							>
+							<div class="w-12 h-12 shrink-0 bg-base-300 rounded flex items-center justify-center">
 								<Music2 class="w-6 h-6 opacity-50" />
 							</div>
 						{/if}

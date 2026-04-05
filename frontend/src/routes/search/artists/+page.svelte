@@ -26,7 +26,7 @@
 	let hasMore = $state(true);
 	let offset = 0;
 	const limit = 24;
-	let sentinel: HTMLElement = $state();
+	let sentinel = $state<HTMLElement>();
 	let abortController: AbortController | null = null;
 	let enrichmentController: AbortController | null = null;
 	let observer: IntersectionObserver | null = $state(null);
@@ -245,7 +245,7 @@
 			<div
 				class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
 			>
-				{#each Array(12) as _, i}
+				{#each Array(12) as _, i (`loading-artist-${i}`)}
 					<ArtistCardSkeleton variant="detailed" />
 				{/each}
 			</div>
@@ -255,7 +255,7 @@
 	{:else}
 		{#if topArtist}
 			<div class="mb-4">
-				<SearchTopResult artist={topArtist} {enrichmentSource} />
+				<SearchTopResult artist={topArtist} />
 			</div>
 		{/if}
 		<div class="bg-base-200 rounded-box p-4">

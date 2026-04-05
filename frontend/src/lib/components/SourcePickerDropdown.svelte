@@ -51,11 +51,7 @@
 {/snippet}
 
 {#if hasMultiple}
-	<div
-		bind:this={containerEl}
-		class="dropdown dropdown-end flex-shrink-0"
-		class:dropdown-open={isOpen}
-	>
+	<div bind:this={containerEl} class="dropdown dropdown-end shrink-0" class:dropdown-open={isOpen}>
 		<button
 			type="button"
 			class="badge badge-sm gap-1.5 cursor-pointer select-none border-base-content/15 hover:border-base-content/30 transition-colors"
@@ -70,7 +66,7 @@
 			<ul
 				class="dropdown-content menu bg-base-200/95 backdrop-blur-md rounded-box shadow-xl border border-base-300 p-1 min-w-36 z-50 mt-1"
 			>
-				{#each availableSources as source}
+				{#each availableSources as source (source)}
 					<li>
 						<button
 							type="button"
@@ -91,7 +87,7 @@
 	</div>
 {:else}
 	<span
-		class="badge badge-sm gap-1.5 border-base-content/10 flex-shrink-0"
+		class="badge badge-sm gap-1.5 border-base-content/10 shrink-0"
 		style="color: {getSourceColor(currentSource)};"
 	>
 		{@render sourceIcon(currentSource, 'h-3 w-3')}

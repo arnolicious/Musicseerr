@@ -39,7 +39,7 @@
 		{#if canPlay}
 			<button
 				onclick={onPlay}
-				class="w-6 flex-shrink-0 flex items-center justify-center cursor-pointer"
+				class="w-6 shrink-0 flex items-center justify-center cursor-pointer"
 				aria-label="Play {song.title}"
 			>
 				<span class="group-hover:hidden text-sm text-base-content/50">{position}</span>
@@ -48,7 +48,7 @@
 				</span>
 			</button>
 		{:else if previewEnabled}
-			<span class="w-6 flex-shrink-0 flex items-center justify-center">
+			<span class="w-6 shrink-0 flex items-center justify-center">
 				<span class="group-hover:hidden">{position}</span>
 				<span class="hidden group-hover:block">
 					<TrackPreviewButton
@@ -64,7 +64,7 @@
 		{:else}
 			<a
 				href={albumHref(song.release_group_mbid ?? '')}
-				class="w-6 flex-shrink-0 flex items-center justify-center"
+				class="w-6 shrink-0 flex items-center justify-center"
 			>
 				<span class="group-hover:hidden text-sm text-base-content/50">{position}</span>
 				<span class="hidden group-hover:block">
@@ -77,7 +77,7 @@
 			href={albumHref(song.release_group_mbid ?? '')}
 			class="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
 		>
-			<div class="w-12 h-12 flex-shrink-0">
+			<div class="w-12 h-12 shrink-0">
 				<AlbumImage
 					mbid={song.release_group_mbid ?? ''}
 					alt={song.release_name || ''}
@@ -103,7 +103,7 @@
 		{#if canPlay}
 			<button
 				onclick={onPlay}
-				class="w-6 flex-shrink-0 flex items-center justify-center cursor-pointer"
+				class="w-6 shrink-0 flex items-center justify-center cursor-pointer"
 				aria-label="Play {song.title}"
 			>
 				<span class="group-hover:hidden text-sm text-base-content/50">{position}</span>
@@ -112,7 +112,7 @@
 				</span>
 			</button>
 		{:else if previewEnabled}
-			<span class="w-6 flex-shrink-0 flex items-center justify-center">
+			<span class="w-6 shrink-0 flex items-center justify-center">
 				<span class="group-hover:hidden">{position}</span>
 				<span class="hidden group-hover:block">
 					<TrackPreviewButton
@@ -131,7 +131,7 @@
 		{#if isLastfmNoAlbum}
 			<LastFmPlaceholder />
 		{:else}
-			<div class="w-12 h-12 flex-shrink-0 bg-base-300 rounded flex items-center justify-center">
+			<div class="w-12 h-12 shrink-0 bg-base-300 rounded flex items-center justify-center">
 				<Music2 class="w-6 h-6 opacity-50" />
 			</div>
 		{/if}

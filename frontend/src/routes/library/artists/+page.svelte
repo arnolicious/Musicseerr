@@ -179,10 +179,12 @@
 		</div>
 	{:else if loading}
 		<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-			{#each Array(12) as _}<ArtistCardSkeleton />{/each}
+			{#each Array(12) as _, i (`skeleton-${i}`)}
+				<ArtistCardSkeleton />
+			{/each}
 		</div>
 	{:else if artists.length === 0}
-		<div class="flex flex-col items-center justify-center min-h-[400px] text-center">
+		<div class="flex flex-col items-center justify-center min-h-100 text-center">
 			<Mic class="h-12 w-12 text-base-content/40 mb-4" strokeWidth={1.5} />
 			<h2 class="text-2xl font-semibold mb-2">No artists found</h2>
 			<p class="text-base-content/70 mb-4">

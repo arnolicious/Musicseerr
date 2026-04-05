@@ -73,6 +73,7 @@
 				);
 				searchResults = data.results ?? [];
 			} catch {
+				// Ignore errors
 			} finally {
 				searching = false;
 			}
@@ -190,7 +191,7 @@
 						</div>
 					{:else if searchResults.length > 0}
 						<div class="mt-2 max-h-48 overflow-y-auto rounded-box bg-base-200">
-							{#each searchResults as album}
+							{#each searchResults as album (album.musicbrainz_id)}
 								<button
 									class="flex items-center gap-3 w-full p-2 hover:bg-base-300 transition-colors text-left"
 									onclick={() => selectAlbum(album)}

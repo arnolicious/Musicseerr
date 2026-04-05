@@ -274,6 +274,8 @@
 		servicePrompts.filter((p) => p.service !== 'lidarr-connection' && !isDismissed(p.service))
 	);
 
+	// TODO: what's up with this, do we need it?
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	let dismissedVersion = 0;
 	function handlePromptDismiss(_service: string) {
 		dismissedVersion++;
@@ -316,7 +318,7 @@
 		<div class="space-y-10 px-4 sm:space-y-12 sm:px-6 lg:px-8">
 			{#if !lidarrConfigured && lidarrPrompt}
 				<div
-					class="card bg-gradient-to-br from-accent/20 via-accent/10 to-base-200 border-2 border-accent/40 shadow-xl relative overflow-hidden"
+					class="card bg-linear-to-br from-accent/20 via-accent/10 to-base-200 border-2 border-accent/40 shadow-xl relative overflow-hidden"
 				>
 					<div class="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
 						<span class="absolute left-[15%] bottom-4 text-accent/10 text-2xl animate-note-float"
@@ -345,7 +347,7 @@
 							library, request albums, and track your collection.
 						</p>
 						<div class="flex flex-wrap justify-center gap-2 mb-6">
-							{#each lidarrPrompt.features as feature}
+							{#each lidarrPrompt.features as feature (feature)}
 								<span class="badge badge-accent badge-lg">{feature}</span>
 							{/each}
 						</div>
@@ -359,7 +361,7 @@
 
 			{#if otherPrompts.length > 0 && lidarrConfigured}
 				<div class="space-y-3">
-					{#each otherPrompts as prompt}
+					{#each otherPrompts as prompt, i (`prompt-${i}`)}
 						<ServicePromptCard {prompt} ondismiss={handlePromptDismiss} />
 					{/each}
 				</div>
@@ -420,7 +422,7 @@
 				<section>
 					<div class="skeleton skeleton-shimmer mb-4 h-6 w-36"></div>
 					<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 lg:grid-cols-5">
-						{#each Array(10) as _}
+						{#each Array(10) as _, i (`genre-skeleton-${i}`)}
 							<div class="skeleton skeleton-shimmer h-20 rounded-lg sm:h-24"></div>
 						{/each}
 					</div>
@@ -437,7 +439,7 @@
 			{/if}
 
 			{#if loading && !homeData}
-				{#each Array(4) as _}
+				{#each Array(4) as _, i (`post-genre-skeleton-${i}`)}
 					<section>
 						<div class="skeleton skeleton-shimmer mb-4 h-6 w-32"></div>
 						<CarouselSkeleton showSubtitle={false} />

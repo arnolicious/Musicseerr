@@ -336,12 +336,12 @@
 
 			{#if activeLoading && activeItems.length === 0}
 				<div class="flex flex-col gap-2.5">
-					{#each Array(3) as _, i}
+					{#each Array(3) as _, i (`active-loading-${i}`)}
 						<div
 							class="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-base-200 rounded-box animate-pulse"
 							style="animation-delay: {i * 100}ms"
 						>
-							<div class="w-14 h-14 sm:w-[72px] sm:h-[72px] bg-base-300 rounded-lg"></div>
+							<div class="w-14 h-14 sm:w-18 sm:h-18 bg-base-300 rounded-lg"></div>
 							<div class="flex-1">
 								<div class="h-4 bg-base-300 rounded w-44 mb-2"></div>
 								<div class="h-3 bg-base-300 rounded w-28 mb-1"></div>
@@ -355,7 +355,7 @@
 					{/each}
 				</div>
 			{:else if activeItems.length === 0}
-				<div class="flex flex-col items-center justify-center min-h-[240px] text-center py-16">
+				<div class="flex flex-col items-center justify-center min-h-60 text-center py-16">
 					<div class="w-16 h-16 rounded-full bg-success/5 flex items-center justify-center mb-4">
 						<CheckCircle class="h-8 w-8 text-success/30" />
 					</div>
@@ -421,12 +421,12 @@
 
 			{#if historyLoading && historyItems.length === 0}
 				<div class="flex flex-col gap-2.5">
-					{#each Array(5) as _, i}
+					{#each Array(5) as _, i (`history-loading-${i}`)}
 						<div
 							class="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-base-200 rounded-box animate-pulse"
 							style="animation-delay: {i * 80}ms"
 						>
-							<div class="w-14 h-14 sm:w-[72px] sm:h-[72px] bg-base-300 rounded-lg"></div>
+							<div class="w-14 h-14 sm:w-18 sm:h-18 bg-base-300 rounded-lg"></div>
 							<div class="flex-1">
 								<div class="h-4 bg-base-300 rounded w-44 mb-2"></div>
 								<div class="h-3 bg-base-300 rounded w-28"></div>
@@ -439,7 +439,7 @@
 					{/each}
 				</div>
 			{:else if historyItems.length === 0}
-				<div class="flex flex-col items-center justify-center min-h-[240px] text-center py-16">
+				<div class="flex flex-col items-center justify-center min-h-60 text-center py-16">
 					<div
 						class="w-16 h-16 rounded-full bg-base-content/3 flex items-center justify-center mb-4"
 					>

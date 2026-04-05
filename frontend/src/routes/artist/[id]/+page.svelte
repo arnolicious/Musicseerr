@@ -617,7 +617,7 @@
 
 					{#if artist.tags.length > 0}
 						<div class="flex flex-wrap gap-2 justify-center sm:justify-start -mt-2">
-							{#each artist.tags.slice(0, 10) as tag}
+							{#each artist.tags.slice(0, 10) as tag (tag)}
 								<a
 									href="/genre?name={encodeURIComponent(tag)}"
 									class="badge badge-lg cursor-pointer hover:opacity-80 transition-opacity"

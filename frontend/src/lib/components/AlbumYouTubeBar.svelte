@@ -176,7 +176,7 @@
 					}
 				}
 			);
-		} catch (e) {
+		} catch (_e) {
 			toastStore.show({
 				message: "Couldn't play the album video",
 				type: 'error',

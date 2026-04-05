@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-function-type */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { QueueItem, SourceType } from '$lib/player/types';
+import type { QueueItem } from '$lib/player/types';
 
 type StateCallback = (state: import('$lib/player/types').PlaybackState) => void;
 type ProgressCallback = (currentTime: number, duration: number) => void;
@@ -821,6 +822,7 @@ describe('beforeunload beacon', () => {
 	let addEventListenerSpy: ReturnType<typeof vi.fn>;
 	let removeEventListenerSpy: ReturnType<typeof vi.fn>;
 	let sendBeaconMock: ReturnType<typeof vi.fn>;
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	let jellyfinApi: {
 		startSession: ReturnType<typeof vi.fn>;
 		reportProgress: ReturnType<typeof vi.fn>;

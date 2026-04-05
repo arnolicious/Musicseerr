@@ -82,7 +82,7 @@
 				</div>
 			{/if}
 			<div class="flex flex-col sm:flex-row items-center sm:items-end gap-6 sm:gap-8">
-				<div class="flex-shrink-0">
+				<div class="shrink-0">
 					<div class="relative">
 						<div
 							class="w-40 h-40 sm:w-52 sm:h-52 lg:w-64 lg:h-64 rounded-full overflow-hidden shadow-2xl ring-4 ring-base-100/20 bg-neutral"

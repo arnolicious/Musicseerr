@@ -14,7 +14,7 @@
 	</div>
 
 	<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-		{#each Array(count) as _}
+		{#each Array(count) as _, i (i)}
 			<div class="card bg-base-100 w-full shadow-sm">
 				<figure class="aspect-square overflow-hidden relative">
 					<div class="skeleton skeleton-shimmer w-full h-full absolute inset-0"></div>

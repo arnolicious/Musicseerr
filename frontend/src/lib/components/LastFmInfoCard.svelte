@@ -133,7 +133,7 @@
 
 		{#if hasTags}
 			<div class="flex flex-wrap gap-2">
-				{#each tags.slice(0, 10) as tag}
+				{#each tags.slice(0, 10) as tag (tag.name)}
 					<a
 						href="/genre?name={encodeURIComponent(tag.name)}"
 						class="badge badge-outline badge-sm cursor-pointer hover:badge-primary transition-colors"

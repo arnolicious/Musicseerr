@@ -41,20 +41,11 @@
 		endpoint: string;
 		title: string;
 		subtitle: string;
-		errorEmoji?: string;
 		errorIcon?: ComponentType | null;
 		source?: 'listenbrainz' | 'lastfm' | null;
 	}
 
-	let {
-		itemType,
-		endpoint,
-		title,
-		subtitle,
-		errorEmoji = '💿',
-		errorIcon = null,
-		source = null
-	}: Props = $props();
+	let { itemType, endpoint, title, subtitle, errorIcon = null, source = null }: Props = $props();
 
 	const timeRanges: { key: TimeRangeKey; label: string }[] = [
 		{ key: 'this_week', label: 'This Week' },
@@ -286,11 +277,11 @@
 	</div>
 
 	{#if loading}
-		<div class="flex min-h-[400px] items-center justify-center">
+		<div class="flex min-h-100 items-center justify-center">
 			<span class="loading loading-spinner loading-lg"></span>
 		</div>
 	{:else if !overviewData}
-		<div class="flex min-h-[400px] flex-col items-center justify-center text-center">
+		<div class="flex min-h-100 flex-col items-center justify-center text-center">
 			{#if errorIcon}
 				{@const SvelteComponent = errorIcon}
 				<SvelteComponent class="h-12 w-12 text-base-content/40 mb-4" strokeWidth={1.5} />
@@ -303,7 +294,7 @@
 		</div>
 	{:else}
 		<div class="space-y-8">
-			{#each timeRanges as range}
+			{#each timeRanges as range (range.key)}
 				{@const featured = getFeaturedForRange(range.key)}
 				{@const items = getItemsForRange(range.key)}
 				{@const isExpanded = expandedRange === range.key}
@@ -339,7 +330,7 @@
 							{/if}
 
 							<div class="grid-cards-overview lg:col-span-2">
-								{#each items.slice(0, 8) as item, idx}
+								{#each items.slice(0, 8) as item, idx (item.mbid)}
 									{@const rank = idx + 2}
 									{@const itemHref = getItemHref(item)}
 									<TimeRangeCard
@@ -360,7 +351,7 @@
 						</div>
 					{:else if expandedData}
 						<div class="grid-cards">
-							{#each expandedData.items as item, idx}
+							{#each expandedData.items as item, idx (item.mbid)}
 								{@const rank = idx + 1}
 								{@const itemHref = getItemHref(item)}
 								<TimeRangeCard

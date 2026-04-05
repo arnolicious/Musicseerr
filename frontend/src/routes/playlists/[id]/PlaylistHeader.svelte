@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { tick } from 'svelte';
 	import {
 		updatePlaylist,
 		uploadPlaylistCover,
@@ -174,7 +173,7 @@
 </script>
 
 <div class="flex flex-col lg:flex-row gap-6 lg:gap-8">
-	<div class="relative group w-full lg:w-64 xl:w-80 flex-shrink-0">
+	<div class="relative group w-full lg:w-64 xl:w-80 shrink-0">
 		<PlaylistMosaic
 			coverUrls={playlist.cover_urls}
 			customCoverUrl={coverDisplayUrl}
@@ -261,7 +260,7 @@
 					{playlist.name}
 				</h1>
 				<Pencil
-					class="h-4 w-4 flex-shrink-0 text-base-content/30 opacity-0 group-hover/name:opacity-100 transition-opacity"
+					class="h-4 w-4 shrink-0 text-base-content/30 opacity-0 group-hover/name:opacity-100 transition-opacity"
 				/>
 			</button>
 		{/if}

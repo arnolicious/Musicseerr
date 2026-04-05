@@ -10,6 +10,7 @@
 	import { api } from '$lib/api/client';
 	import HorizontalCarousel from './HorizontalCarousel.svelte';
 	import WeeklyExplorationCard from './WeeklyExplorationCard.svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 
 	interface Props {
 		section: SectionType;
@@ -20,12 +21,7 @@
 
 	let activeQuotaIndex = $state<number | null>(null);
 	let quotaInfo = $state<YouTubeQuotaStatus | null>(null);
-	let cacheMap = $state<Map<string, boolean>>(new Map());
-
-	function handleQuotaUse(index: number, quota: YouTubeQuotaStatus) {
-		activeQuotaIndex = index;
-		quotaInfo = quota;
-	}
+	let cacheMap = new SvelteMap<string, boolean>();
 
 	function cacheKey(artist: string, track: string): string {
 		return `${artist.toLowerCase()}|${track.toLowerCase()}`;
@@ -40,11 +36,9 @@
 					items: section.tracks.map((t) => ({ artist: t.artist_name, track: t.title }))
 				}
 			);
-			const map = new Map<string, boolean>();
 			for (const item of data.items) {
-				map.set(cacheKey(item.artist, item.track), item.cached);
+				cacheMap.set(cacheKey(item.artist, item.track), item.cached);
 			}
-			cacheMap = map;
 		} catch {
 			// cache check is best-effort
 		}
@@ -91,7 +85,7 @@
 	</div>
 
 	<HorizontalCarousel>
-		{#each section.tracks as track, i}
+		{#each section.tracks as track, i (track.artist_name + track.title)}
 			<WeeklyExplorationCard
 				{track}
 				index={i}

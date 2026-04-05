@@ -206,9 +206,7 @@
 	></a>
 
 	<div class="relative z-10 flex items-center gap-3 sm:gap-4 p-3 sm:p-4 pointer-events-none">
-		<div
-			class="w-14 h-14 sm:w-[72px] sm:h-[72px] flex-shrink-0 rounded-lg overflow-hidden relative"
-		>
+		<div class="w-14 h-14 sm:w-18 sm:h-18 shrink-0 rounded-lg overflow-hidden relative">
 			<AlbumImage
 				mbid={item.musicbrainz_id}
 				customUrl={item.cover_url ?? null}
@@ -259,7 +257,7 @@
 			</div>
 		</div>
 
-		<div class="flex flex-col items-end gap-1.5 flex-shrink-0 pointer-events-auto">
+		<div class="flex flex-col items-end gap-1.5 shrink-0 pointer-events-auto">
 			<span
 				class="badge {statusConfig.badgeClass} badge-sm gap-1"
 				aria-label="Status: {statusConfig.label}"
@@ -380,11 +378,11 @@
 			<div
 				class="bg-base-100/50 border border-error/10 rounded-lg p-3 text-xs max-h-48 overflow-y-auto"
 			>
-				{#each activeItem.status_messages ?? [] as msg}
+				{#each activeItem.status_messages ?? [] as msg, i (`${msg.title}-${i}`)}
 					{#if msg.title}
 						<div class="font-medium text-base-content/70 mt-2 first:mt-0">{msg.title}</div>
 					{/if}
-					{#each msg.messages as message}
+					{#each msg.messages as message, j (`${message}-${j}`)}
 						<div class="text-error/70 ml-3 mt-0.5">• {message}</div>
 					{/each}
 				{/each}

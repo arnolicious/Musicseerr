@@ -43,7 +43,7 @@
 </script>
 
 <div
-	class="flex w-44 flex-shrink-0 flex-col rounded-xl bg-base-100 shadow-sm
+	class="flex w-44 shrink-0 flex-col rounded-xl bg-base-100 shadow-sm
 	transition-all duration-200 hover:shadow-[0_0_24px_rgba(174,213,242,0.12)]"
 >
 	{#if albumHref}
@@ -126,12 +126,12 @@
 					class="text-[11px] text-base-content/40 line-clamp-1 flex items-center gap-1
 						hover:text-primary transition-colors"
 				>
-					<Music2 class="h-2.5 w-2.5 flex-shrink-0" />
+					<Music2 class="h-2.5 w-2.5 shrink-0" />
 					{track.album_name}
 				</a>
 			{:else}
 				<p class="text-[11px] text-base-content/40 line-clamp-1 flex items-center gap-1">
-					<Music2 class="h-2.5 w-2.5 flex-shrink-0" />
+					<Music2 class="h-2.5 w-2.5 shrink-0" />
 					{track.album_name}
 				</p>
 			{/if}

@@ -5,6 +5,7 @@
 	import { api } from '$lib/api/client';
 	import { playerStore } from '$lib/stores/player.svelte';
 	import TrackRow from './TrackRow.svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 
 	interface Props {
 		songs: TopSong[];
@@ -22,8 +23,8 @@
 		ytConfigured = false
 	}: Props = $props();
 
-	let cacheMap = $state<Map<string, boolean>>(new Map());
-	let resolveMap = $state<Map<string, ResolvedTrack>>(new Map());
+	let cacheMap = new SvelteMap<string, boolean>();
+	let resolveMap = new SvelteMap<string, ResolvedTrack>();
 	let lastFetchedKey = $state('');
 	let lastResolveKey = $state('');
 
@@ -61,11 +62,9 @@
 					}
 				);
 				if (lastFetchedKey === key) {
-					const map = new Map<string, boolean>();
 					for (const item of data.items) {
-						map.set(cacheKey(item.artist, item.track), item.cached);
+						cacheMap.set(cacheKey(item.artist, item.track), item.cached);
 					}
-					cacheMap = map;
 				}
 			} catch {
 				// cache check is best-effort
@@ -93,7 +92,6 @@
 					}
 				);
 				if (lastResolveKey === key) {
-					const map = new Map<string, ResolvedTrack>();
 					for (const item of data.items) {
 						if (
 							item.source &&
@@ -101,13 +99,12 @@
 							item.release_group_mbid &&
 							item.track_number != null
 						) {
-							map.set(
+							resolveMap.set(
 								resolveKey(item.release_group_mbid, item.disc_number ?? 1, item.track_number),
 								item
 							);
 						}
 					}
-					resolveMap = map;
 				}
 			} catch {
 				// resolve is best-effort
@@ -165,7 +162,7 @@
 
 	{#if loading}
 		<div class="space-y-2">
-			{#each Array(10) as _, i}
+			{#each Array(10) as _, i (`skeleton-${i}`)}
 				<div class="flex items-center gap-3 p-2">
 					<div class="skeleton w-6 h-4"></div>
 					<div class="skeleton w-12 h-12 rounded"></div>
@@ -189,7 +186,7 @@
 		</div>
 	{:else}
 		<div class="space-y-1">
-			{#each songs as song, i}
+			{#each songs as song, i (song.title + song.artist_name)}
 				<TrackRow
 					{song}
 					position={i + 1}

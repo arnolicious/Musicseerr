@@ -45,7 +45,7 @@
 		emptyDescription
 	}: Props = $props();
 
-	const a = ctrl.adapter;
+	const a = $derived(ctrl.adapter);
 
 	onMount(() => ctrl.init());
 	onDestroy(() => ctrl.cleanup());
@@ -72,7 +72,7 @@
 			<div class="flex gap-3 overflow-x-auto pb-2">
 				{#each ctrl.recentAlbums as album (a.getAlbumId(album))}
 					<button
-						class="flex-shrink-0 w-36 group cursor-pointer transition-transform hover:scale-105 active:scale-95"
+						class="shrink-0 w-36 group cursor-pointer transition-transform hover:scale-105 active:scale-95"
 						onclick={() => ctrl.openDetail(album)}
 					>
 						<div class="aspect-square rounded-lg overflow-hidden shadow-sm relative">
@@ -102,7 +102,7 @@
 			<div class="flex gap-3 overflow-x-auto pb-2">
 				{#each ctrl.favoriteAlbums as album (a.getAlbumId(album))}
 					<button
-						class="flex-shrink-0 w-36 group cursor-pointer transition-transform hover:scale-105 active:scale-95"
+						class="shrink-0 w-36 group cursor-pointer transition-transform hover:scale-105 active:scale-95"
 						onclick={() => ctrl.openDetail(album)}
 					>
 						<div class="aspect-square rounded-lg overflow-hidden shadow-sm">
@@ -157,7 +157,7 @@
 
 	{#if ctrl.loading}
 		<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-			{#each Array(12) as _}
+			{#each Array(12) as _, i (i)}
 				<div class="card bg-base-100 shadow-sm animate-pulse">
 					<div class="aspect-square bg-base-300"></div>
 					<div class="card-body p-3">
@@ -238,7 +238,7 @@
 					</figure>
 
 					<div class="card-body p-3">
-						<h2 class="card-title text-sm line-clamp-2 min-h-[2.5rem]">
+						<h2 class="card-title text-sm line-clamp-2 min-h-10">
 							{a.getAlbumName(album)}
 						</h2>
 						{#if cardBodyExtra}

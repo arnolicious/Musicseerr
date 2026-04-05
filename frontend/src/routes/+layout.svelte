@@ -48,7 +48,6 @@
 		Info,
 		X,
 		UserRound,
-		Check,
 		ListMusic
 	} from 'lucide-svelte';
 	import type { Snippet } from 'svelte';
@@ -196,7 +195,9 @@
 			} else {
 				playerStore.resumeSession();
 			}
-		} catch {}
+		} catch {
+			// Ignore errors
+		}
 	}
 
 	function handleSearch() {
@@ -235,7 +236,7 @@
 
 <div data-theme="musicseerr">
 	{#if showNavigationProgress}
-		<div class="fixed top-0 left-0 right-0 z-[120] pointer-events-none">
+		<div class="fixed top-0 left-0 right-0 z-120 pointer-events-none">
 			<progress class="progress progress-primary w-full h-1"></progress>
 		</div>
 	{/if}
@@ -513,7 +514,7 @@
 				{#if $errorModal.details}
 					<div class="mt-4 rounded-box bg-base-300/60 border border-base-300 p-4">
 						<div class="flex gap-3 items-start">
-							<Info class="h-5 w-5 text-info flex-shrink-0 mt-0.5" />
+							<Info class="h-5 w-5 text-info shrink-0 mt-0.5" />
 							<p class="text-sm text-base-content/80 leading-relaxed text-left">
 								{$errorModal.details}
 							</p>
@@ -527,6 +528,8 @@
 					</button>
 				</div>
 			</div>
+			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+			<!-- svelte-ignore a11y_click_events_have_key_events -->
 			<form method="dialog" class="modal-backdrop" onclick={() => errorModal.hide()}>
 				<button>close</button>
 			</form>
@@ -546,11 +549,11 @@
 						: 'alert-info'} shadow-lg px-4 py-2 min-w-64 max-w-md"
 			>
 				{#if playbackToast.type === 'error'}
-					<X class="h-5 w-5 flex-shrink-0" />
+					<X class="h-5 w-5 shrink-0" />
 				{:else if playbackToast.type === 'warning'}
-					<TriangleAlert class="h-5 w-5 flex-shrink-0" />
+					<TriangleAlert class="h-5 w-5 shrink-0" />
 				{:else}
-					<Info class="h-5 w-5 flex-shrink-0" />
+					<Info class="h-5 w-5 shrink-0" />
 				{/if}
 				<span class="text-sm">{playbackToast.message}</span>
 				<button

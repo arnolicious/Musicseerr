@@ -31,7 +31,7 @@
 	{:else if state.loadingBasic || !state.album}
 		<div class="space-y-6 sm:space-y-8">
 			<div class="flex flex-col lg:flex-row gap-6 lg:gap-8">
-				<div class="skeleton w-full lg:w-64 xl:w-80 aspect-square rounded-box flex-shrink-0"></div>
+				<div class="skeleton w-full lg:w-64 xl:w-80 aspect-square rounded-box shrink-0"></div>
 				<div class="flex-1 flex flex-col justify-end space-y-4">
 					<div class="skeleton h-4 w-20"></div>
 					<div class="skeleton h-12 w-3/4"></div>
@@ -45,7 +45,7 @@
 
 			<div class="space-y-2">
 				<div class="skeleton h-8 w-32 mb-4"></div>
-				{#each Array(8) as _}
+				{#each Array(8) as _, i (`skeleton-${i}`)}
 					<div class="skeleton h-12 w-full"></div>
 				{/each}
 			</div>
@@ -71,7 +71,7 @@
 					<h2 class="text-xl sm:text-2xl font-bold">Tracks</h2>
 					<div class="bg-base-200 rounded-box overflow-hidden">
 						<ul class="list">
-							{#each Array(8) as _}
+							{#each Array(8) as _, i (`track-skeleton-${i}`)}
 								<li class="list-row p-3 sm:p-4">
 									<div class="flex items-center gap-4 w-full">
 										<div class="skeleton w-8 h-4"></div>

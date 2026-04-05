@@ -172,8 +172,7 @@ function createPlayerStore() {
 	}
 
 	async function resolveSourceForItem(
-		item: QueueItem,
-		index: number
+		item: QueueItem
 	): Promise<{ source: PlaybackSource; loadUrl: string | undefined }> {
 		const url = resolveSourceUrl(item);
 		if (item.sourceType === 'youtube') {
@@ -234,7 +233,7 @@ function createPlayerStore() {
 		let source: PlaybackSource,
 			resolvedUrl: string | undefined = item.streamUrl;
 		try {
-			const r = await resolveSourceForItem(item, index);
+			const r = await resolveSourceForItem(item);
 			source = r.source;
 			resolvedUrl = r.loadUrl;
 		} catch {
@@ -670,15 +669,16 @@ function createPlayerStore() {
 			duration = 0;
 			const gen = ++loadGeneration;
 
-			void resolveSourceForItem(resume.currentItem, resume.currentIndex)
+			void resolveSourceForItem(resume.currentItem)
 				.then(async ({ source, loadUrl }) => {
 					if (gen !== loadGeneration) return;
 					currentSource = source;
 					nowPlaying = resume.nowPlaying;
 					subscribeToSource(source, gen);
 					source.setVolume(volume);
-					if (resume.currentItem.sourceType === 'jellyfin')
+					if (resume.currentItem.sourceType === 'jellyfin') {
 						await startJellyfinPlayback(resume.currentIndex);
+					}
 					await source.load({
 						trackSourceId: resume.currentItem.trackSourceId,
 						url: loadUrl,

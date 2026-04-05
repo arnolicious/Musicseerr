@@ -98,7 +98,7 @@
 			<aside
 				class="w-full lg:w-80 space-y-4 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto"
 			>
-				{#each groups as group}
+				{#each groups as group, i (`group-${i}`)}
 					<div class="bg-base-200 rounded-box p-2">
 						<div class="px-4 py-2">
 							<h3 class="text-xs font-semibold text-base-content/50 uppercase tracking-wider">
@@ -106,7 +106,7 @@
 							</h3>
 						</div>
 						<ul class="menu p-0">
-							{#each getTabsByGroup(group) as tab}
+							{#each getTabsByGroup(group) as tab (tab.id)}
 								{@const Icon = tab.icon}
 								<li>
 									<button

@@ -103,7 +103,7 @@
 
 {#if !hasLink && !apiConfigured}{:else if generating}
 	<button
-		class="btn btn-sm btn-ghost rounded-lg gap-1.5 flex-shrink-0"
+		class="btn btn-sm btn-ghost rounded-lg gap-1.5 shrink-0"
 		disabled
 		aria-label="Generating link"
 	>
@@ -112,7 +112,7 @@
 	</button>
 {:else}
 	<button
-		class="btn btn-sm rounded-lg gap-1.5 flex-shrink-0"
+		class="btn btn-sm rounded-lg gap-1.5 shrink-0"
 		class:btn-error={hasLink}
 		class:btn-ghost={!hasLink}
 		onclick={handleClick}

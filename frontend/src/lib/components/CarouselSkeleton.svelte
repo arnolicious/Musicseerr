@@ -16,8 +16,8 @@
 
 <div class="flex gap-3 overflow-x-auto pb-2 sm:gap-4 scrollbar-hide" role="status" aria-busy="true">
 	<span class="sr-only">Loading…</span>
-	{#each Array(count) as _}
-		<div class="{cardWidth} flex-shrink-0">
+	{#each Array(count) as _, i (i)}
+		<div class="{cardWidth} shrink-0">
 			<div
 				class="skeleton skeleton-shimmer aspect-square w-full {rounded === 'full'
 					? 'rounded-full'

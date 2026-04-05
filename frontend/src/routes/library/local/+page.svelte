@@ -172,7 +172,7 @@
 					<div class="stat px-4 py-3">
 						<div class="stat-title text-xs">Formats</div>
 						<div class="flex gap-1 mt-1 flex-wrap">
-							{#each Object.entries(typedStats.format_breakdown) as [fmt, info]}
+							{#each Object.entries(typedStats.format_breakdown) as [fmt, info] (fmt)}
 								<span class="badge badge-xs badge-ghost">{fmt}: {info.count}</span>
 							{/each}
 						</div>
@@ -212,9 +212,7 @@
 		<div class="flex items-center justify-between">
 			<p class="text-xs opacity-70 line-clamp-1 flex-1">{album.artist_name}</p>
 			{#if album.total_size_bytes > 0}
-				<span class="text-xs opacity-40 flex-shrink-0 ml-1"
-					>{formatSize(album.total_size_bytes)}</span
-				>
+				<span class="text-xs opacity-40 shrink-0 ml-1">{formatSize(album.total_size_bytes)}</span>
 			{/if}
 		</div>
 	{/snippet}

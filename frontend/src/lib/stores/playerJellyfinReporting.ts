@@ -45,7 +45,9 @@ export function createProgressReporter(
 				}
 				consecutiveFailures += 1;
 				if (consecutiveFailures >= maxFailures) stop();
-			} catch {}
+			} catch {
+				// Ignore errors
+			}
 		}, intervalMs);
 	}
 

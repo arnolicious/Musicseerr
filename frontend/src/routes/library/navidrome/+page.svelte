@@ -46,6 +46,7 @@
 				const items = data.albums ?? [];
 				return { items, total: items.length };
 			}
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity
 			const params = new URLSearchParams({
 				limit: String(limit),
 				offset: String(offset),

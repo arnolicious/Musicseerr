@@ -197,7 +197,7 @@
 
 	{#if loading}
 		<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-			{#each Array(12) as _}
+			{#each Array(12) as _, i (`skeleton-${i}`)}
 				<div class="card bg-base-100 shadow-sm animate-pulse">
 					<div class="aspect-square bg-base-300"></div>
 					<div class="card-body p-3">
@@ -304,7 +304,7 @@
 					</figure>
 
 					<div class="card-body p-3">
-						<h2 class="card-title text-sm line-clamp-2 min-h-[2.5rem]">{link.album_name}</h2>
+						<h2 class="card-title text-sm line-clamp-2 min-h-10">{link.album_name}</h2>
 						<p class="text-xs opacity-70 line-clamp-1">{link.artist_name}</p>
 					</div>
 				</div>

@@ -97,14 +97,14 @@
 					<img
 						src={nowPlayingCoverUrl}
 						alt={playerStore.nowPlaying.albumName}
-						class="w-[60px] h-[60px] rounded-lg shadow-lg ring-1 ring-base-content/10 object-cover flex-shrink-0"
+						class="w-15 h-15 rounded-lg shadow-lg ring-1 ring-base-content/10 object-cover shrink-0"
 						onerror={() => {
 							coverImgError = true;
 						}}
 					/>
 				{:else}
 					<div
-						class="w-[60px] h-[60px] rounded-lg shadow-lg bg-base-200 flex items-center justify-center flex-shrink-0"
+						class="w-15 h-15 rounded-lg shadow-lg bg-base-200 flex items-center justify-center shrink-0"
 					>
 						<Music class="h-6 w-6 opacity-40" />
 					</div>
@@ -123,7 +123,7 @@
 							{:else}
 								{playerStore.nowPlaying.albumName}
 							{/if}
-							{' — '}
+							—
 							{#if playerStore.nowPlaying.artistId}
 								<a href="/artist/{playerStore.nowPlaying.artistId}" class="hover:underline"
 									>{playerStore.nowPlaying.artistName}</a
@@ -280,7 +280,7 @@
 				</div>
 
 				<div class="hidden sm:flex items-center gap-1.5">
-					<Volume2 class="h-4 w-4 opacity-60 flex-shrink-0" />
+					<Volume2 class="h-4 w-4 opacity-60 shrink-0" />
 					<input
 						type="range"
 						class="range range-xs w-20"

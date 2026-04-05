@@ -22,7 +22,6 @@
 	import { isAbortError } from '$lib/utils/errorHandling';
 	import { api } from '$lib/api/client';
 	import { isDismissed } from '$lib/utils/dismissedPrompts';
-	import { formatLastUpdated } from '$lib/utils/formatting';
 	import { musicSourceStore, type MusicSource } from '$lib/stores/musicSource';
 	import { discoverQueueStatusStore } from '$lib/stores/discoverQueueStatus';
 	import { Compass, CircleAlert, Sparkles, Music, BarChart3 } from 'lucide-svelte';
@@ -184,7 +183,9 @@
 		isUpdating = true;
 		try {
 			await api.global.post('/api/v1/discover/refresh');
-		} catch {}
+		} catch {
+			// Ignore errors
+		}
 
 		try {
 			const maxPolls = 30;
@@ -326,7 +327,7 @@
 		<div class="px-4 sm:px-6 lg:px-8">
 			{#if servicePrompts.length > 0}
 				<div class="space-y-3 mb-6">
-					{#each servicePrompts as prompt}
+					{#each servicePrompts as prompt, i (`service-prompt-${prompt.service}-${i}`)}
 						<ServicePromptCard {prompt} ondismiss={handlePromptDismiss} />
 					{/each}
 				</div>
@@ -334,7 +335,7 @@
 
 			{#if loading && !discoverData}
 				<div class="space-y-8">
-					{#each Array(3) as _}
+					{#each Array(3) as _, i (`loading-section-${i}`)}
 						<section>
 							<div class="skeleton skeleton-shimmer mb-4 h-6 w-48"></div>
 							<CarouselSkeleton />

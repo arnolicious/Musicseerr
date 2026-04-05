@@ -83,7 +83,7 @@
 		>
 			<X class="h-3.5 w-3.5" />
 		</button>
-		<div class="flex-shrink-0" style={getIconColor()}>
+		<div class="shrink-0" style={getIconColor()}>
 			<SvelteComponent class="h-10 w-10 sm:h-12 sm:w-12" />
 		</div>
 		<div class="min-w-0 flex-1 pr-6">
@@ -92,12 +92,12 @@
 				{prompt.description}
 			</p>
 			<div class="flex flex-wrap gap-1 sm:gap-2">
-				{#each prompt.features as feature}
+				{#each prompt.features as feature, i (`${feature}-${i}`)}
 					<span class="badge badge-ghost badge-xs sm:badge-sm">{feature}</span>
 				{/each}
 			</div>
 		</div>
-		<div class="flex-shrink-0">
+		<div class="shrink-0">
 			<a
 				href={getSettingsLink(prompt.service)}
 				class="btn btn-sm sm:btn-md {getPromptButtonClass(prompt.color)}"

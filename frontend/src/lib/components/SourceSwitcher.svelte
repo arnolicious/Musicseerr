@@ -25,7 +25,9 @@
 	let showSwitcher = $derived(lbEnabled && lfmEnabled);
 
 	$effect(() => {
-		sourceState.current.source;
+		// TODO should be refactored
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+		sourceState.current.source; // Reactivity
 		currentSource = musicSourceStore.getPageSource(pageKey);
 	});
 

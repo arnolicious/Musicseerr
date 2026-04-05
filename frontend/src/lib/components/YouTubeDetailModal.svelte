@@ -61,6 +61,7 @@
 	}
 
 	function getTrackSections(): Array<{ discNumber: number; tracks: YouTubeTrackLink[] }> {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const sections = new Map<number, YouTubeTrackLink[]>();
 		for (const track of getSortedTracks()) {
 			const discNumber = normalizeDiscNumber(track.disc_number);
@@ -303,7 +304,7 @@
 	<dialog class="modal modal-open">
 		<div class="modal-box max-w-5xl p-0 overflow-hidden">
 			<div class="flex gap-6 p-6 pb-4">
-				<div class="flex-shrink-0">
+				<div class="shrink-0">
 					{#if canNavigate}
 						<button
 							onclick={goToAlbum}
@@ -422,7 +423,7 @@
 
 			<div class="divider my-0 mx-6"></div>
 
-			<div class="px-6 pt-3 pb-5 max-h-[32rem] overflow-y-auto">
+			<div class="px-6 pt-3 pb-5 max-h-128 overflow-y-auto">
 				{#if loadingTracks}
 					<div class="flex justify-center py-8">
 						<span class="loading loading-spinner loading-md"></span>
@@ -439,7 +440,7 @@
 					</div>
 				{:else if tracks.length > 0}
 					<div class="flex flex-col gap-0.5">
-						{#each trackSections as section}
+						{#each trackSections as section (section.discNumber)}
 							{#if trackSections.length > 1}
 								<div class="px-3 pt-3 pb-1">
 									<div
@@ -450,7 +451,7 @@
 									</div>
 								</div>
 							{/if}
-							{#each section.tracks as track}
+							{#each section.tracks as track (track.track_name + track.disc_number + track.track_number)}
 								{@const isCurrentlyPlaying =
 									playerStore.nowPlaying?.albumId === link.album_id &&
 									(playerStore.currentQueueItem?.discNumber ?? 1) ===
@@ -458,9 +459,10 @@
 									playerStore.currentQueueItem?.trackNumber === track.track_number &&
 									playerStore.isPlaying}
 								<div
-									class="flex items-center gap-3 w-full py-2.5 px-3 rounded-lg transition-colors group/track {isCurrentlyPlaying
-										? ''
-										: 'hover:bg-base-200'}"
+									class={[
+										'flex items-center gap-3 w-full py-2.5 px-3 rounded-lg transition-colors group/track',
+										!isCurrentlyPlaying && 'hover:bg-base-200'
+									]}
 									style={isCurrentlyPlaying ? `background-color: ${colors.accent}15;` : ''}
 								>
 									<button
@@ -468,7 +470,7 @@
 										onclick={() => playTrack(track)}
 									>
 										<span
-											class="font-mono w-7 text-right text-sm flex-shrink-0 {isCurrentlyPlaying
+											class="font-mono w-7 text-right text-sm shrink-0 {isCurrentlyPlaying
 												? ''
 												: 'opacity-40'}"
 											style={isCurrentlyPlaying ? `color: ${colors.accent};` : ''}
@@ -485,7 +487,7 @@
 											>{track.track_name}</span
 										>
 										<Play
-											class="h-4 w-4 flex-shrink-0 transition-opacity {isCurrentlyPlaying
+											class="h-4 w-4 shrink-0 transition-opacity {isCurrentlyPlaying
 												? 'opacity-100'
 												: 'opacity-0 group-hover/track:opacity-100'} fill-current"
 											style={isCurrentlyPlaying
@@ -494,7 +496,7 @@
 										/>
 									</button>
 
-									<div class="flex-shrink-0">
+									<div class="shrink-0">
 										<ContextMenu items={getTrackMenuItems(track)} position="end" size="xs" />
 									</div>
 								</div>

@@ -19,6 +19,7 @@
 	import SourcePickerDropdown from '$lib/components/SourcePickerDropdown.svelte';
 	import NowPlayingIndicator from '$lib/components/NowPlayingIndicator.svelte';
 	import { Music, Trash2, ListPlus, ListStart, GripVertical, Play, X } from 'lucide-svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	interface Props {
 		playlist: PlaylistDetail;
@@ -39,38 +40,36 @@
 	let pendingReorderPosition: number | null = null;
 	let preKeyboardTracks: PlaylistTrack[] | null = null;
 
-	let selectedIds = $state<Set<string>>(new Set());
+	let selectedIds = new SvelteSet<string>();
 	let lastClickedIndex = $state<number | null>(null);
 	let bulkRemoving = $state(false);
 	let selectionMode = $derived(selectedIds.size > 0);
 
 	function toggleTrackSelection(trackId: string, index: number, shiftKey: boolean) {
-		const next = new Set(selectedIds);
 		if (shiftKey && lastClickedIndex !== null) {
 			const from = Math.min(lastClickedIndex, index);
 			const to = Math.max(lastClickedIndex, index);
 			for (let j = from; j <= to; j++) {
-				next.add(playlist.tracks[j].id);
+				selectedIds.add(playlist.tracks[j].id);
 			}
-		} else if (next.has(trackId)) {
-			next.delete(trackId);
+		} else if (selectedIds.has(trackId)) {
+			selectedIds.delete(trackId);
 		} else {
-			next.add(trackId);
+			selectedIds.add(trackId);
 		}
-		selectedIds = next;
 		lastClickedIndex = index;
 	}
 
 	function toggleSelectAll() {
 		if (selectedIds.size === playlist.tracks.length) {
-			selectedIds = new Set();
+			selectedIds.clear();
 		} else {
-			selectedIds = new Set(playlist.tracks.map((t) => t.id));
+			playlist.tracks.forEach((t) => selectedIds.add(t.id));
 		}
 	}
 
 	function clearSelection() {
-		selectedIds = new Set();
+		selectedIds.clear();
 		lastClickedIndex = null;
 	}
 
@@ -124,7 +123,7 @@
 		if (removingTrackIds.has(track.id)) return;
 		const prevTracks = [...playlist.tracks];
 		const prevDuration = playlist.total_duration;
-		removingTrackIds = new Set([...removingTrackIds, track.id]);
+		removingTrackIds.add(track.id);
 		playlist.tracks = playlist.tracks.filter((t) => t.id !== track.id);
 		playlist.track_count = playlist.tracks.length;
 		playlist.total_duration = Math.max(0, (playlist.total_duration ?? 0) - (track.duration ?? 0));
@@ -139,9 +138,7 @@
 			playlist.total_duration = prevDuration;
 			toastStore.show({ message: "Couldn't remove that track", type: 'error' });
 		} finally {
-			const next = new Set(removingTrackIds);
-			next.delete(track.id);
-			removingTrackIds = next;
+			removingTrackIds.delete(track.id);
 		}
 	}
 
@@ -167,7 +164,6 @@
 		const prevSource = track.source_type;
 		const prevSourceId = track.track_source_id;
 		const prevFormat = track.format;
-		const prevAvailableSources = track.available_sources;
 		track.source_type = newSourceType;
 		try {
 			const updated = await updatePlaylistTrack(playlist.id, track.id, {
@@ -383,7 +379,7 @@
 			>
 				<div class="flex items-center gap-4 w-full">
 					<button
-						class="cursor-grab active:cursor-grabbing p-1 touch-none flex-shrink-0 transition-opacity {selectionMode
+						class="cursor-grab active:cursor-grabbing p-1 touch-none shrink-0 transition-opacity {selectionMode
 							? 'pointer-events-none opacity-0'
 							: '[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100'}"
 						aria-label="Drag to reorder"
@@ -396,7 +392,7 @@
 
 					<input
 						type="checkbox"
-						class="checkbox checkbox-sm flex-shrink-0 transition-opacity {selectionMode
+						class="checkbox checkbox-sm shrink-0 transition-opacity {selectionMode
 							? ''
 							: '[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100'}"
 						checked={selectedIds.has(track.id)}
@@ -408,16 +404,16 @@
 					/>
 
 					{#if isCurrentlyPlaying}
-						<div class="w-6 flex items-center justify-center flex-shrink-0">
+						<div class="w-6 flex items-center justify-center shrink-0">
 							<NowPlayingIndicator />
 						</div>
 					{:else}
 						<span
-							class="text-base-content/40 text-sm w-6 text-center tabular-nums flex-shrink-0 group-hover:hidden"
+							class="text-base-content/40 text-sm w-6 text-center tabular-nums shrink-0 group-hover:hidden"
 							>{i + 1}</span
 						>
 						<button
-							class="w-6 text-center flex-shrink-0 hidden group-hover:flex items-center justify-center cursor-pointer"
+							class="w-6 text-center shrink-0 hidden group-hover:flex items-center justify-center cursor-pointer"
 							aria-label="Play {track.track_name}"
 							onclick={(e) => {
 								e.stopPropagation();
@@ -428,7 +424,7 @@
 						</button>
 					{/if}
 
-					<div class="w-10 h-10 rounded-md overflow-hidden flex-shrink-0 bg-base-300">
+					<div class="w-10 h-10 rounded-md overflow-hidden shrink-0 bg-base-300">
 						{#if track.cover_url}
 							<img src={track.cover_url} alt="" class="w-full h-full object-cover" loading="lazy" />
 						{:else}
@@ -471,7 +467,7 @@
 						</span>
 					</div>
 
-					<span class="text-sm text-base-content/40 tabular-nums flex-shrink-0">
+					<span class="text-sm text-base-content/40 tabular-nums shrink-0">
 						{formatDurationSec(track.duration)}
 					</span>
 
@@ -482,7 +478,7 @@
 					/>
 
 					<div
-						class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0"
+						class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity shrink-0"
 					>
 						<ContextMenu items={getTrackMenuItems(track)} position="end" size="xs" />
 					</div>

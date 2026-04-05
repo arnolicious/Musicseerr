@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Artist, Album, EnrichmentSource } from '$lib/types';
+	import type { Artist, Album } from '$lib/types';
 	import { artistHref, albumHref } from '$lib/utils/entityRoutes';
 	import HeroBackdrop from './HeroBackdrop.svelte';
 	import ArtistImage from './ArtistImage.svelte';
@@ -8,10 +8,9 @@
 	interface Props {
 		artist?: Artist | null;
 		album?: Album | null;
-		enrichmentSource?: EnrichmentSource;
 	}
 
-	let { artist = null, album = null, enrichmentSource = 'none' }: Props = $props();
+	let { artist = null, album = null }: Props = $props();
 
 	let imageUrl = $derived.by(() => {
 		if (artist) {
@@ -48,7 +47,7 @@
 
 <a
 	{href}
-	class="group relative flex items-end gap-4 overflow-hidden rounded-box p-4 sm:p-6 min-h-[120px] sm:min-h-[140px] transition-shadow hover:shadow-lg"
+	class="group relative flex items-end gap-4 overflow-hidden rounded-box p-4 sm:p-6 min-h-30 sm:min-h-35 transition-shadow hover:shadow-lg"
 	style="--hero-glow-color: var(--brand-hero);"
 >
 	<div class="absolute inset-0 bg-base-200"></div>
@@ -61,7 +60,7 @@
 		position="full"
 	/>
 	<div
-		class="absolute inset-0 bg-gradient-to-r from-base-100/80 via-base-100/40 to-transparent pointer-events-none"
+		class="absolute inset-0 bg-linear-to-r from-base-100/80 via-base-100/40 to-transparent pointer-events-none"
 	></div>
 
 	<div class="relative z-10 flex items-center gap-4 sm:gap-5 w-full">

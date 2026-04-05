@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
 	import { API } from '$lib/constants';
 	import { api } from '$lib/api/client';
 	import { isAbortError } from '$lib/utils/errorHandling';
@@ -82,6 +81,7 @@
 			profile.display_name = nameInput;
 			editingName = false;
 		} catch {
+			// Ignore errors
 		} finally {
 			saving = false;
 		}
@@ -129,6 +129,7 @@
 			profile.avatar_url = data.avatar_url + '?t=' + Date.now();
 			closeAvatarModal();
 		} catch {
+			// Ignore errors
 		} finally {
 			saving = false;
 		}
@@ -218,10 +219,8 @@
 
 <div class="min-h-screen">
 	<div class="relative overflow-hidden">
-		<div class="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/10 to-base-100"></div>
-		<div
-			class="absolute inset-0 bg-gradient-to-t from-base-100 via-base-100/60 to-transparent"
-		></div>
+		<div class="absolute inset-0 bg-linear-to-br from-primary/20 via-accent/10 to-base-100"></div>
+		<div class="absolute inset-0 bg-linear-to-t from-base-100 via-base-100/60 to-transparent"></div>
 
 		<div class="relative px-4 pt-10 pb-6 sm:px-6 lg:px-8">
 			<div class="mx-auto max-w-4xl">
@@ -237,7 +236,7 @@
 					<div class="flex flex-col items-center gap-6">
 						<button
 							onclick={() => (showAvatarModal = true)}
-							class="group relative h-32 w-32 flex-shrink-0 cursor-pointer overflow-hidden rounded-full shadow-2xl ring-4 ring-base-content/10 transition-all hover:ring-primary/40 sm:h-40 sm:w-40"
+							class="group relative h-32 w-32 shrink-0 cursor-pointer overflow-hidden rounded-full shadow-2xl ring-4 ring-base-content/10 transition-all hover:ring-primary/40 sm:h-40 sm:w-40"
 							aria-label="Change profile picture"
 						>
 							{#if profile.avatar_url}
@@ -248,7 +247,7 @@
 								/>
 							{:else}
 								<div
-									class="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/30 to-accent/20"
+									class="flex h-full w-full items-center justify-center bg-linear-to-br from-primary/30 to-accent/20"
 								>
 									<UserRound class="h-16 w-16 text-base-content/40 sm:h-20 sm:w-20" />
 								</div>
@@ -330,7 +329,7 @@
 						Connected Services
 					</h2>
 					<div class="grid gap-3 sm:grid-cols-3">
-						{#each profile.services as service}
+						{#each profile.services as service (service.name)}
 							{@const Icon = getServiceIcon(service.name)}
 							{@const profileUrl = getServiceProfileUrl(service)}
 							<a
@@ -389,7 +388,7 @@
 							Your Libraries
 						</h2>
 						<div class="space-y-4">
-							{#each profile.library_stats as stats}
+							{#each profile.library_stats as stats (stats.source)}
 								{@const SourceIcon = getSourceIcon(stats.source)}
 								<div
 									class="overflow-hidden rounded-xl border border-base-300/40 bg-base-200/50 backdrop-blur-sm"
@@ -410,28 +409,29 @@
 												<Disc3 class="h-3.5 w-3.5" />
 												<span class="text-[10px] font-medium uppercase tracking-wider">Songs</span>
 											</div>
-											<span class="text-xl font-bold tabular-nums"
-												>{formatNumber(stats.total_tracks)}</span
-											>
+											<span class="text-xl font-bold tabular-nums">
+												{formatNumber(stats.total_tracks)}
+											</span>
 										</div>
 										<div class="flex flex-col items-center gap-1">
 											<div class="flex items-center gap-1.5 text-base-content/50">
 												<Database class="h-3.5 w-3.5" />
 												<span class="text-[10px] font-medium uppercase tracking-wider">Albums</span>
 											</div>
-											<span class="text-xl font-bold tabular-nums"
-												>{formatNumber(stats.total_albums)}</span
-											>
+											<span class="text-xl font-bold tabular-nums">
+												{formatNumber(stats.total_albums)}
+											</span>
 										</div>
 										<div class="flex flex-col items-center gap-1">
 											<div class="flex items-center gap-1.5 text-base-content/50">
 												<Users class="h-3.5 w-3.5" />
-												<span class="text-[10px] font-medium uppercase tracking-wider">Artists</span
-												>
+												<span class="text-[10px] font-medium uppercase tracking-wider">
+													Artists
+												</span>
 											</div>
-											<span class="text-xl font-bold tabular-nums"
-												>{formatNumber(stats.total_artists)}</span
-											>
+											<span class="text-xl font-bold tabular-nums">
+												{formatNumber(stats.total_artists)}
+											</span>
 										</div>
 									</div>
 									{#if stats.total_size_human}
@@ -439,8 +439,9 @@
 											class="flex items-center justify-center gap-2 border-t border-base-300/30 px-5 py-3"
 										>
 											<HardDrive class="h-3.5 w-3.5 text-base-content/40" />
-											<span class="text-xs text-base-content/50">{stats.total_size_human} used</span
-											>
+											<span class="text-xs text-base-content/50">
+												{stats.total_size_human} used
+											</span>
 										</div>
 									{/if}
 								</div>

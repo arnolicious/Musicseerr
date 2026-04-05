@@ -138,7 +138,7 @@
 				>
 					<div class="list-col-grow flex items-center gap-4 w-full">
 						<div
-							class="font-medium w-8 text-center flex-shrink-0 {isCurrentlyPlaying
+							class="font-medium w-8 text-center shrink-0 {isCurrentlyPlaying
 								? ''
 								: 'text-base-content/60'}"
 							style={isCurrentlyPlaying ? `color: ${colors.accent};` : ''}
@@ -159,12 +159,12 @@
 							</div>
 						</div>
 
-						<div class="text-base-content/60 text-sm flex-shrink-0">
+						<div class="text-base-content/60 text-sm shrink-0">
 							{formatDuration(track.length)}
 						</div>
 
 						{#if youtubeEnabled || showJellyfinBtn || showLocalBtn || showNavidromeBtn}
-							<div class="flex items-center gap-1.5 flex-shrink-0 ml-auto">
+							<div class="flex items-center gap-1.5 shrink-0 ml-auto">
 								{#if youtubeEnabled}
 									<TrackPlayButton
 										trackNumber={track.position}

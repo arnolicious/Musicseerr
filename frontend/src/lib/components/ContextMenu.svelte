@@ -142,7 +142,7 @@
 			if (e.key === 'Escape' && detailsEl) detailsEl.open = false;
 		}}
 	>
-		{#each items as item}
+		{#each items as item, i (`item-${i}`)}
 			<li>
 				<button
 					role="menuitem"

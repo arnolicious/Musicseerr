@@ -61,7 +61,9 @@ function createIntegrationStore() {
 					);
 					update((state) => ({ ...state, ...status, loaded: true }));
 					return;
-				} catch {}
+				} catch {
+					// Ignore error
+				}
 
 				update((state) => ({ ...state, loaded: true }));
 			})().finally(() => {

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-namespace */
 import type { PlaybackSource, PlaybackState } from './types';
 
 declare global {
@@ -49,7 +50,11 @@ const apiReadyQueue: { resolve: () => void; reject: (err: Error) => void }[] = [
 function flushQueue(error?: Error): void {
 	const pending = apiReadyQueue.splice(0);
 	for (const { resolve, reject } of pending) {
-		error ? reject(error) : resolve();
+		if (error) {
+			reject(error);
+		} else {
+			resolve();
+		}
 	}
 }
 

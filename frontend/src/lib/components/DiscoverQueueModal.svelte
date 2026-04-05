@@ -25,6 +25,7 @@
 		YouTubeSearchResponse,
 		YouTubeQuotaStatus
 	} from '$lib/types';
+	import { SvelteMap } from 'svelte/reactivity';
 
 	let { open = $bindable(false), source }: { open: boolean; source: MusicSource } = $props();
 
@@ -54,9 +55,9 @@
 	let ytSearchResult: YouTubeSearchResponse | null = $state(null);
 	let ytQuota: YouTubeQuotaStatus | null = $state(null);
 
-	let enrichmentCache = new Map<string, DiscoverQueueEnrichment>();
-	let inFlightEnrich = new Map<string, Promise<DiscoverQueueEnrichment | null>>();
-	let ytSearchCache = new Map<string, YouTubeSearchResponse>();
+	let enrichmentCache = new SvelteMap<string, DiscoverQueueEnrichment>();
+	let inFlightEnrich = new SvelteMap<string, Promise<DiscoverQueueEnrichment | null>>();
+	let ytSearchCache = new SvelteMap<string, YouTubeSearchResponse>();
 	let abortController: AbortController | null = null;
 
 	let currentItem: DiscoverQueueItemFull | undefined = $derived(queue[currentIndex]);
@@ -362,7 +363,7 @@
 		class="modal-box w-[92vw] max-w-4xl max-h-[80vh] sm:max-w-4xl max-sm:w-screen max-sm:max-w-full max-sm:max-h-screen max-sm:rounded-none flex flex-col p-0! overflow-hidden rounded-2xl bg-base-100 shadow-2xl relative"
 	>
 		<div
-			class="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-primary via-secondary to-primary z-10 rounded-t-2xl"
+			class="absolute top-0 inset-x-0 h-0.5 bg-linear-to-r from-primary via-secondary to-primary z-10 rounded-t-2xl"
 		></div>
 
 		{#if loading}
@@ -413,7 +414,7 @@
 						<div class="flex items-center gap-2 shrink-0">
 							<div class="w-18 h-1 rounded-full bg-base-content/20 overflow-hidden">
 								<div
-									class="h-full rounded-full bg-gradient-to-r from-primary to-secondary transition-all duration-400"
+									class="h-full rounded-full `bg-linear-to-r from-primary to-secondary transition-all duration-400"
 									style="width: {progressFraction * 100}%"
 								></div>
 							</div>
@@ -442,7 +443,7 @@
 										size="full"
 										lazy={false}
 										rounded="none"
-										className="w-[260px] h-[260px] object-cover block"
+										className="w-65 `h-65 object-cover block"
 									/>
 								</button>
 
@@ -510,7 +511,7 @@
 								size="full"
 								lazy={false}
 								rounded="none"
-								className="w-full max-w-[220px] aspect-square object-cover block"
+								className="w-full max-w-55 aspect-square object-cover block"
 							/>
 						</button>
 
@@ -541,7 +542,7 @@
 							</button>
 						</div>
 
-						<div class="min-h-[120px] w-full">
+						<div class="min-h-30 w-full">
 							{#if enriching}
 								<div class="skeleton h-40 w-full rounded-lg"></div>
 							{:else if mobileTab === 'video'}
@@ -568,7 +569,7 @@
 					</div>
 
 					<div
-						class="flex justify-between items-center shrink-0 py-3 px-6 max-sm:py-3 max-sm:px-4 max-sm:flex-col max-sm:gap-2 border-t border-base-content/5 bg-base-content/[0.02]"
+						class="flex justify-between items-center shrink-0 py-3 px-6 max-sm:py-3 max-sm:px-4 max-sm:flex-col max-sm:gap-2 border-t border-base-content/5 bg-base-content/"
 					>
 						<button class="btn btn-sm btn-soft btn-error" onclick={handleIgnore}>
 							<X class="h-4 w-4" />

@@ -261,7 +261,7 @@
 				<div
 					class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
 				>
-					{#each Array(6) as _, i}
+					{#each Array(6) as _, i (`artist-skeleton-${i}`)}
 						<ArtistCardSkeleton variant="detailed" />
 					{/each}
 				</div>
@@ -276,7 +276,7 @@
 				<div
 					class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
 				>
-					{#each Array(6) as _, i}
+					{#each Array(6) as _, i (`album-skeleton-${i}`)}
 						<AlbumCardSkeleton />
 					{/each}
 				</div>
@@ -288,10 +288,10 @@
 		{#if hasTopResult && !isSearching}
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 				{#if topArtist}
-					<SearchTopResult artist={topArtist} {enrichmentSource} />
+					<SearchTopResult artist={topArtist} />
 				{/if}
 				{#if topAlbum}
-					<SearchTopResult album={topAlbum} {enrichmentSource} />
+					<SearchTopResult album={topAlbum} />
 				{/if}
 			</div>
 		{/if}
@@ -303,7 +303,7 @@
 					<div
 						class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
 					>
-						{#each Array(6) as _, i}
+						{#each Array(6) as _, i (`artist-skeleton-${i}`)}
 							<ArtistCardSkeleton variant="detailed" />
 						{/each}
 					</div>
@@ -341,7 +341,7 @@
 					<div
 						class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
 					>
-						{#each Array(6) as _, i}
+						{#each Array(6) as _, i (`album-skeleton-${i}`)}
 							<AlbumCardSkeleton />
 						{/each}
 					</div>

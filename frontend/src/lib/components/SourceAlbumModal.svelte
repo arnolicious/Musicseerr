@@ -386,7 +386,7 @@
 	<dialog class="modal modal-open">
 		<div class="modal-box max-w-4xl p-0 overflow-hidden">
 			<div class="flex gap-5 p-6 pb-4">
-				<div class="flex-shrink-0">
+				<div class="shrink-0">
 					{#if canNavigate}
 						<button
 							onclick={goToAlbum}
@@ -484,7 +484,7 @@
 
 			<div class="divider my-0 px-6"></div>
 
-			<div class="px-6 pt-3 pb-5 max-h-[28rem] overflow-y-auto">
+			<div class="px-6 pt-3 pb-5 max-h-112 overflow-y-auto">
 				{#if loadingTracks}
 					<div class="flex justify-center py-6">
 						<span class="loading loading-spinner loading-md"></span>
@@ -496,7 +496,7 @@
 					</div>
 				{:else if trackCount > 0}
 					<div class="flex flex-col">
-						{#each { length: trackCount } as _, i}
+						{#each { length: trackCount } as _, i (`track-${i}`)}
 							{@const trackNum = getTrackNumber(i)}
 							{@const discNum = getTrackDiscNumber(i)}
 							{@const playing = isTrackPlaying(trackNum, discNum)}
@@ -510,7 +510,7 @@
 									onclick={() => playTrack(i)}
 								>
 									<span
-										class="font-mono w-6 text-right text-sm flex-shrink-0 {playing
+										class="font-mono w-6 text-right text-sm shrink-0 {playing
 											? 'text-accent'
 											: 'opacity-40'}"
 									>
@@ -526,24 +526,24 @@
 									{#if sourceType === 'jellyfin'}
 										{@const dur = jellyfinTracks[i]?.duration_seconds}
 										{#if dur}
-											<span class="text-xs opacity-40 flex-shrink-0">{formatDuration(dur)}</span>
+											<span class="text-xs opacity-40 shrink-0">{formatDuration(dur)}</span>
 										{/if}
 									{:else if sourceType === 'navidrome'}
 										{@const dur = navidromeTracks[i]?.duration_seconds}
 										{#if dur}
-											<span class="text-xs opacity-40 flex-shrink-0">{formatDuration(dur)}</span>
+											<span class="text-xs opacity-40 shrink-0">{formatDuration(dur)}</span>
 										{/if}
 									{:else}
 										{@const lt = localTracks[i]}
 										{#if lt?.duration_seconds}
-											<span class="text-xs opacity-40 flex-shrink-0"
+											<span class="text-xs opacity-40 shrink-0"
 												>{formatDuration(lt.duration_seconds)}</span
 											>
 										{/if}
 									{/if}
 									<span class={playing ? 'text-accent' : ''}>
 										<Play
-											class="h-4 w-4 flex-shrink-0 transition-opacity {playing
+											class="h-4 w-4 shrink-0 transition-opacity {playing
 												? 'opacity-100'
 												: 'text-accent opacity-0 group-hover/track:opacity-100'} fill-current"
 										/>

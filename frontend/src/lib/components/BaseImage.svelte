@@ -188,7 +188,7 @@
 </script>
 
 <div
-	class="relative overflow-hidden flex-shrink-0 {sizeClass} {roundedClass} {className}"
+	class="relative overflow-hidden shrink-0 {sizeClass} {roundedClass} {className}"
 	style="background-color: {PLACEHOLDER_COLORS.DARK};"
 >
 	{#if showPlaceholder && (!imgLoaded || imgError || !hasSource)}

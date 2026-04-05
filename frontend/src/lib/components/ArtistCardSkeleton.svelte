@@ -7,7 +7,7 @@
 </script>
 
 {#if variant === 'detailed'}
-	<div class="card bg-base-100 w-full shadow-sm flex-shrink-0">
+	<div class="card bg-base-100 w-full shadow-sm shrink-0">
 		<figure class="flex justify-center pt-4">
 			<div
 				class="skeleton skeleton-shimmer w-28 h-28 sm:w-32 sm:h-32 md:w-36 md:h-36 rounded-full"
@@ -20,7 +20,7 @@
 		</div>
 	</div>
 {:else}
-	<div class="card bg-base-100 w-full shadow-sm flex-shrink-0">
+	<div class="card bg-base-100 w-full shadow-sm shrink-0">
 		<figure class="flex justify-center pt-4">
 			<div class="skeleton skeleton-shimmer w-24 h-24 sm:w-32 sm:h-32 rounded-full"></div>
 		</figure>

@@ -13,7 +13,7 @@
 	let { description, loading = false }: Props = $props();
 
 	let descriptionExpanded = $state(false);
-	let descriptionElement: HTMLElement = $state();
+	let descriptionElement = $state<HTMLElement | null>(null);
 	let showViewMore = $state(false);
 
 	function checkDescriptionHeight() {
@@ -47,6 +47,7 @@
 		<div class="text-sm sm:text-base text-base-content/80 leading-relaxed">
 			{#if descriptionExpanded}
 				<div>
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 					{@html description.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>')}
 				</div>
 				<button
@@ -63,6 +64,7 @@
 					class="line-clamp-4 overflow-hidden"
 					style="display: -webkit-box; -webkit-box-orient: vertical;"
 				>
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 					{@html description.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>')}
 				</div>
 				{#if showViewMore}

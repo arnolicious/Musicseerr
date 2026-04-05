@@ -66,7 +66,7 @@
 	{#if !collapsed}
 		<div class="border border-base-300 border-t-0 rounded-b-box bg-base-200/30">
 			<div class="list" role="list">
-				{#each releases as rg}
+				{#each releases as rg (rg.id)}
 					<div class="list-row group hover:bg-base-200 transition-colors p-0" role="listitem">
 						<a
 							href={albumHref(rg.id)}
@@ -86,7 +86,7 @@
 								</div>
 							</div>
 						</a>
-						<div class="flex items-center flex-shrink-0 ml-auto mr-3 sm:mr-4">
+						<div class="flex items-center shrink-0 ml-auto mr-3 sm:mr-4">
 							{#if libraryStore.isInLibrary(rg.id) || rg.in_library}
 								<LibraryBadge
 									status="library"
