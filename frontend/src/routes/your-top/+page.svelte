@@ -33,7 +33,6 @@
 		title="Your Top Albums"
 		subtitle={`Your most listened albums on ${sourceLabel}`}
 		{source}
-		errorEmoji="💿"
 		errorIcon={Disc3}
 	/>
 </div>

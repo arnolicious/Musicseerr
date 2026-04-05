@@ -119,7 +119,7 @@
 								{showKey ? 'Hide' : 'Show'}
 							</button>
 						</div>
-						<label class="label">
+						<label class="label" for="yt-api-key">
 							<span class="label-text-alt text-base-content/50"
 								>Enable YouTube Data API v3, then create an API key in Credentials</span
 							>

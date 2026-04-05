@@ -81,7 +81,6 @@
 			icon={Clock}
 			iconBgClass="bg-primary/10"
 			iconTextClass="text-primary"
-			sectionId="frontend-cache"
 			bind:isOpen={openFrontendCache}
 			name="advanced-settings"
 		>
@@ -94,7 +93,6 @@
 			icon={Archive}
 			iconBgClass="bg-secondary/10"
 			iconTextClass="text-secondary"
-			sectionId="backend-cache"
 			bind:isOpen={openBackendCache}
 			name="advanced-settings"
 		>
@@ -107,7 +105,6 @@
 			icon={Globe}
 			iconBgClass="bg-accent/10"
 			iconTextClass="text-accent"
-			sectionId="network-batch"
 			bind:isOpen={openNetworkBatch}
 			name="advanced-settings"
 		>
@@ -120,7 +117,6 @@
 			icon={Database}
 			iconBgClass="bg-warning/10"
 			iconTextClass="text-warning"
-			sectionId="storage-queue"
 			bind:isOpen={openStorageQueue}
 			name="advanced-settings"
 		>
@@ -133,7 +129,6 @@
 			icon={ImageIcon}
 			iconBgClass="bg-primary/10"
 			iconTextClass="text-primary"
-			sectionId="audiodb"
 			bind:isOpen={openAudioDB}
 			name="advanced-settings"
 		>

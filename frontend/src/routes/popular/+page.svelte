@@ -33,7 +33,6 @@
 		title="Popular Right Now"
 		subtitle={`Most listened albums on ${sourceLabel}`}
 		{source}
-		errorEmoji="💿"
 		errorIcon={Disc3}
 	/>
 </div>

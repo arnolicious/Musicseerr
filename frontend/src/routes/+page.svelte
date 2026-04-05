@@ -28,12 +28,12 @@
 	import { removeQueueCachedData } from '$lib/utils/discoverQueueCache';
 	import { isDismissed } from '$lib/utils/dismissedPrompts';
 
-	let homeData: HomeResponse | null = $state(null);
+	let homeData = $state<HomeResponse | null>(null);
 	let loading = $state(true);
 	let refreshing = $state(false);
 	let isUpdating = $state(false);
 	let error = $state('');
-	let lastUpdated: Date | null = $state(null);
+	let lastUpdated = $state<Date | null>(null);
 	let abortController: AbortController | null = null;
 	let activeSource: MusicSource = 'listenbrainz';
 

@@ -26,12 +26,12 @@
 	import { discoverQueueStatusStore } from '$lib/stores/discoverQueueStatus';
 	import { Compass, CircleAlert, Sparkles, Music, BarChart3 } from 'lucide-svelte';
 
-	let discoverData: DiscoverResponse | null = $state(null);
+	let discoverData = $state<DiscoverResponse | null>(null);
 	let loading = $state(true);
 	let refreshing = $state(false);
 	let isUpdating = $state(false);
 	let error = $state('');
-	let lastUpdated: Date | null = $state(null);
+	let lastUpdated = $state<Date | null>(null);
 	let abortController: AbortController | null = null;
 	let queueModalOpen = $state(false);
 	let activeSource: MusicSource = $state('listenbrainz');

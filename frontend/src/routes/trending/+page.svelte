@@ -33,7 +33,6 @@
 		title="Trending Artists"
 		subtitle={`Most listened artists on ${sourceLabel}`}
 		{source}
-		errorEmoji="🎤"
 		errorIcon={Mic}
 	/>
 </div>
