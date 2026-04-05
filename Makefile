@@ -121,20 +121,20 @@ frontend-test: ## Run the frontend vitest suite
 	cd "$(FRONTEND_DIR)" && $(NPM) run test
 
 frontend-test-queuehelpers: ## Run queue helper regressions
-	cd "$(FRONTEND_DIR)" && npx vitest run --project server src/lib/player/queueHelpers.spec.ts
+	cd "$(FRONTEND_DIR)" && $(NPM) exec vitest run --project server src/lib/player/queueHelpers.spec.ts
 
 frontend-test-album-page: ## Run the album page browser test
-	cd "$(FRONTEND_DIR)" && npx vitest run --project client src/routes/album/[id]/page.svelte.spec.ts
+	cd "$(FRONTEND_DIR)" && $(NPM) vitest run --project client src/routes/album/[id]/page.svelte.spec.ts
 
 frontend-test-playlist-detail: ## Run playlist page browser tests
-	cd "$(FRONTEND_DIR)" && npx vitest run --project client src/routes/playlists/[id]/page.svelte.spec.ts
+	cd "$(FRONTEND_DIR)" && $(NPM) vitest run --project client src/routes/playlists/[id]/page.svelte.spec.ts
 
 frontend-browser-install: ## Install Playwright Chromium for browser tests
-	cd "$(FRONTEND_DIR)" && npx playwright install chromium
+	cd "$(FRONTEND_DIR)" && $(NPM) playwright install chromium
 
 frontend-test-audiodb-images: ## Run AudioDB image tests
-	cd "$(FRONTEND_DIR)" && npx vitest run --project server src/lib/utils/imageSuffix.spec.ts
-	cd "$(FRONTEND_DIR)" && npx vitest run --project client src/lib/components/BaseImage.svelte.spec.ts
+	cd "$(FRONTEND_DIR)" && $(NPM) vitest run --project server src/lib/utils/imageSuffix.spec.ts
+	cd "$(FRONTEND_DIR)" && $(NPM) vitest run --project client src/lib/components/BaseImage.svelte.spec.ts
 
 project-map: ## Refresh the project map block
 	cd "$(ROOT_DIR)" && $(PYTHON) scripts/gen-project-map.py
