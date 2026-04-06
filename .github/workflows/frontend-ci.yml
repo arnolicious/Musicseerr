@@ -10,6 +10,10 @@ defaults:
   run:
     working-directory: ./frontend
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     name: Lint
@@ -28,7 +32,7 @@ jobs:
         with:
           node-version: '25'
           cache: 'pnpm'
-          cache-dependency-path: frontend
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -53,7 +57,7 @@ jobs:
         with:
           node-version: '25'
           cache: 'pnpm'
-          cache-dependency-path: frontend
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -78,7 +82,7 @@ jobs:
         with:
           node-version: '25'
           cache: 'pnpm'
-          cache-dependency-path: frontend
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
