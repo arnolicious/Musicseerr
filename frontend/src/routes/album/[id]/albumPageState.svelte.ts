@@ -21,6 +21,7 @@ import { libraryStore } from '$lib/stores/library';
 import { integrationStore } from '$lib/stores/integration';
 import { isAbortError } from '$lib/utils/errorHandling';
 import { extractServiceStatus } from '$lib/utils/serviceStatus';
+import { api } from '$lib/api/client';
 import {
 	albumBasicCache,
 	albumDiscoveryCache,
@@ -45,7 +46,8 @@ import {
 	fetchJellyfinMatch,
 	fetchLocalMatch,
 	fetchNavidromeMatch,
-	fetchLastFm
+	fetchLastFm,
+	refreshAlbum
 } from './albumFetchers';
 import { buildRenderedTrackSections, buildSortedTrackMap } from './albumTrackResolvers';
 import type { RenderedTrackSection } from './albumTrackResolvers';
@@ -95,6 +97,11 @@ export function createAlbumPageState(albumIdGetter: () => string) {
 	let renderedTrackSections = $state<RenderedTrackSection[]>([]);
 	let playlistModalRef = $state<{ open: (tracks: QueueItem[]) => void } | null>(null);
 	let abortController: AbortController | null = null;
+	let refreshing = $state(false);
+	let pollingForSources = $state(false);
+	let pollTimer: ReturnType<typeof setInterval> | null = null;
+	let artistInLidarr = $state(false);
+	let artistMonitored = $state(false);
 
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- derived Map is recreated each time, reactive by nature
 	const trackLinkMap = $derived(new Map(trackLinks.map((tl) => [getDiscTrackKey(tl), tl])));
@@ -116,6 +123,7 @@ export function createAlbumPageState(albumIdGetter: () => string) {
 			abortController.abort();
 			abortController = null;
 		}
+		stopPolling();
 		album = null;
 		tracksInfo = null;
 		renderedTrackSections = [];
@@ -137,6 +145,7 @@ export function createAlbumPageState(albumIdGetter: () => string) {
 		loadingNavidrome = false;
 		lastfmEnrichment = null;
 		loadingLastfm = true;
+		refreshing = false;
 	}
 
 	function hydrateFromCache(albumId: string) {
@@ -316,12 +325,32 @@ export function createAlbumPageState(albumIdGetter: () => string) {
 		}
 	}
 
+	async function fetchArtistMonitoringState(artistId: string, signal: AbortSignal) {
+		try {
+			const integrations = get(integrationStore);
+			if (!integrations.lidarr) return;
+			const info = await api.global.get<{
+				in_lidarr?: boolean;
+				monitored?: boolean;
+				auto_download?: boolean;
+			}>(`/api/v1/artists/${artistId}/monitoring`, { signal });
+			if (signal.aborted) return;
+			artistInLidarr = info.in_lidarr ?? false;
+			artistMonitored = info.monitored ?? false;
+		} catch (e) {
+			console.debug('Artist monitoring fetch failed:', e);
+		}
+	}
+
 	async function loadAlbum(albumId: string) {
 		const { refreshBasic, refreshTracks, refreshDiscovery, refreshLastfm, refreshSourceMatch } =
 			hydrateFromCache(albumId);
 		if (abortController) abortController.abort();
 		abortController = new AbortController();
 		const signal = abortController.signal;
+
+		artistInLidarr = false;
+		artistMonitored = false;
 
 		// Fire source matches that only need albumId immediately (before basic loads)
 		if (refreshSourceMatch) {
@@ -364,11 +393,12 @@ export function createAlbumPageState(albumIdGetter: () => string) {
 			void doFetchBasic(albumId, signal);
 		}
 		if (signal.aborted || !album) return;
+		if (album.artist_id) void fetchArtistMonitoringState(album.artist_id, signal);
 		if (refreshTracks && !refreshBasic) void doFetchTracks(albumId, signal);
 		if (refreshDiscovery) void doFetchDiscovery(albumId, signal);
 		if (!refreshBasic) void doFetchYouTube(albumId, signal);
 		if (refreshLastfm) void doFetchLastFm(albumId, signal);
-		// Navidrome match needs album title/artist — fire after basic loads
+		// Navidrome match needs album title/artist - fire after basic loads
 		if (refreshSourceMatch) {
 			void (async () => {
 				try {
@@ -397,6 +427,71 @@ export function createAlbumPageState(albumIdGetter: () => string) {
 		}
 	}
 
+	function stopPolling() {
+		if (pollTimer) {
+			clearInterval(pollTimer);
+			pollTimer = null;
+		}
+		pollingForSources = false;
+	}
+
+	function hasAnySourceFound(): boolean {
+		return !!(jellyfinMatch?.found || localMatch?.found || navidromeMatch?.found);
+	}
+
+	async function forceLoadAlbum(albumId: string): Promise<void> {
+		albumBasicCache.remove(albumId);
+		albumTracksCache.remove(albumId);
+		albumSourceMatchCache.remove(albumId);
+
+		if (abortController) abortController.abort();
+		abortController = new AbortController();
+		const signal = abortController.signal;
+
+		try {
+			const freshBasic = await refreshAlbum(albumId, signal);
+			if (freshBasic) {
+				album = freshBasic;
+				extractServiceStatus(album);
+				albumBasicCache.set(album, albumId);
+			}
+		} catch {
+			/* refresh endpoint failure is non-fatal, loadAlbum will re-fetch */
+		}
+
+		if (signal.aborted) return;
+		await loadAlbum(albumId);
+	}
+
+	async function refreshAll(): Promise<void> {
+		const albumId = albumIdGetter();
+		if (!albumId || refreshing) return;
+		refreshing = true;
+		try {
+			await forceLoadAlbum(albumId);
+		} finally {
+			refreshing = false;
+		}
+	}
+
+	function startSourcePolling(): void {
+		stopPolling();
+		const albumId = albumIdGetter();
+		if (!albumId) return;
+		pollingForSources = true;
+		const startTime = Date.now();
+		const POLL_INTERVAL = 30_000;
+		const MAX_POLL_DURATION = 5 * 60_000;
+
+		pollTimer = setInterval(() => {
+			if (Date.now() - startTime >= MAX_POLL_DURATION || hasAnySourceFound()) {
+				stopPolling();
+				return;
+			}
+			void forceLoadAlbum(albumId);
+		}, POLL_INTERVAL);
+	}
+
 	$effect(() => {
 		const albumId = albumIdGetter();
 		if (!browser || !albumId) return;
@@ -405,11 +500,18 @@ export function createAlbumPageState(albumIdGetter: () => string) {
 			void loadAlbum(albumId);
 		});
 		return () => {
+			stopPolling();
 			if (abortController) {
 				abortController.abort();
 				abortController = null;
 			}
 		};
+	});
+
+	$effect(() => {
+		if (inLibrary && !hasAnySourceFound()) {
+			untrack(() => startSourcePolling());
+		}
 	});
 
 	const eventHandlers = createEventHandlers({
@@ -430,7 +532,12 @@ export function createAlbumPageState(albumIdGetter: () => string) {
 			toastMessage = msg;
 			toastType = type;
 		},
-		setShowToast: (v) => (showToast = v)
+		setShowToast: (v) => (showToast = v),
+		onRequestSuccess: () => {
+			albumSourceMatchCache.remove(albumIdGetter());
+			const aid = album?.artist_id;
+			if (aid && abortController) void fetchArtistMonitoringState(aid, abortController.signal);
+		}
 	});
 
 	function retryTracks(): void {
@@ -630,6 +737,18 @@ export function createAlbumPageState(albumIdGetter: () => string) {
 		get isRequested() {
 			return isRequested;
 		},
+		get artistInLidarr() {
+			return artistInLidarr;
+		},
+		get artistMonitored() {
+			return artistMonitored;
+		},
+		get refreshing() {
+			return refreshing;
+		},
+		get pollingForSources() {
+			return pollingForSources;
+		},
 		get playlistModalRef() {
 			return playlistModalRef;
 		},
@@ -641,6 +760,7 @@ export function createAlbumPageState(albumIdGetter: () => string) {
 		navidromeCallbacks,
 		...eventHandlers,
 		retryTracks,
+		refreshAll,
 		playSourceTrack,
 		getTrackContextMenuItems
 	};

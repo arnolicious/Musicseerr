@@ -7,14 +7,20 @@ class AlbumRequest(AppStruct):
     artist: str | None = None
     album: str | None = None
     year: int | None = None
+    artist_mbid: str | None = None
+    monitor_artist: bool = False
+    auto_download_artist: bool = False
 
 
-class RequestResponse(AppStruct):
+class RequestAcceptedResponse(AppStruct):
     success: bool
     message: str
-    lidarr_response: dict | None = None
+    musicbrainz_id: str
+    status: str = "pending"
 
 
 class QueueStatusResponse(AppStruct):
     queue_size: int
     processing: bool
+    active_workers: int = 0
+    max_workers: int = 1

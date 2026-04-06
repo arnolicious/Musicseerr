@@ -20,6 +20,7 @@ export interface EventHandlerDeps {
 	setRemovedArtistName: (v: string) => void;
 	setToast: (msg: string, type: 'success' | 'error' | 'info' | 'warning') => void;
 	setShowToast: (v: boolean) => void;
+	onRequestSuccess?: () => void;
 }
 
 export function createEventHandlers(deps: EventHandlerDeps) {
@@ -44,7 +45,10 @@ export function createEventHandlers(deps: EventHandlerDeps) {
 		deps.setQuota(q);
 	}
 
-	async function handleRequest(): Promise<void> {
+	async function handleRequest(opts?: {
+		monitorArtist?: boolean;
+		autoDownloadArtist?: boolean;
+	}): Promise<void> {
 		const album = deps.getAlbum();
 		if (!album || deps.getRequesting()) return;
 		deps.setRequesting(true);
@@ -52,7 +56,10 @@ export function createEventHandlers(deps: EventHandlerDeps) {
 			const result = await requestAlbum(album.musicbrainz_id, {
 				artist: album.artist_name ?? undefined,
 				album: album.title,
-				year: album.year ?? undefined
+				year: album.year ?? undefined,
+				artistMbid: album.artist_id,
+				monitorArtist: opts?.monitorArtist,
+				autoDownloadArtist: opts?.autoDownloadArtist
 			});
 			const current = deps.getAlbum();
 			if (result.success && current) {
@@ -61,6 +68,7 @@ export function createEventHandlers(deps: EventHandlerDeps) {
 				deps.albumBasicCacheSet(current, deps.getAlbumId());
 				deps.setToast('Added to Library', 'success');
 				deps.setShowToast(true);
+				deps.onRequestSuccess?.();
 			}
 		} finally {
 			deps.setRequesting(false);
