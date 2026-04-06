@@ -270,18 +270,16 @@
 	let servicePrompts = $derived(homeData?.service_prompts || []);
 	let lidarrConfigured = $derived(homeData?.integration_status?.lidarr ?? true);
 	let lidarrPrompt = $derived(servicePrompts.find((p) => p.service === 'lidarr-connection'));
-	let otherPrompts = $derived(
-		servicePrompts.filter((p) => p.service !== 'lidarr-connection' && !isDismissed(p.service))
-	);
 
-	// TODO: what's up with this, do we need it?
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	let dismissedVersion = 0;
-	function handlePromptDismiss(_service: string) {
-		dismissedVersion++;
-		otherPrompts = servicePrompts.filter(
+	const getOtherPrompts = () => {
+		return servicePrompts.filter(
 			(p) => p.service !== 'lidarr-connection' && !isDismissed(p.service)
 		);
+	};
+	let otherPrompts = $derived(getOtherPrompts());
+
+	function handlePromptDismiss(_service: string) {
+		otherPrompts = getOtherPrompts();
 	}
 </script>
 
@@ -359,7 +357,7 @@
 				</div>
 			{/if}
 
-			{#if otherPrompts.length > 0 && lidarrConfigured}
+			{#if otherPrompts.length > 0 && !lidarrConfigured}
 				<div class="space-y-3">
 					{#each otherPrompts as prompt, i (`prompt-${i}`)}
 						<ServicePromptCard {prompt} ondismiss={handlePromptDismiss} />
