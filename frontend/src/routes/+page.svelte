@@ -357,7 +357,7 @@
 				</div>
 			{/if}
 
-			{#if otherPrompts.length > 0 && !lidarrConfigured}
+			{#if otherPrompts.length > 0 && lidarrConfigured}
 				<div class="space-y-3">
 					{#each otherPrompts as prompt, i (`prompt-${i}`)}
 						<ServicePromptCard {prompt} ondismiss={handlePromptDismiss} />
