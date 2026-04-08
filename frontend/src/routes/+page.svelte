@@ -19,14 +19,13 @@
 	import { isDismissed } from '$lib/utils/dismissedPrompts';
 	import { getHomeQuery } from '$lib/queries/HomeQuery.svelte';
 
-	let refreshing = $state(false);
-	let lastUpdated = $state<Date | null>(null);
 	let activeSource = $state<MusicSource>('listenbrainz');
 
 	const homeQuery = getHomeQuery(() => activeSource);
 	const homeData = $derived(homeQuery.data);
 	const loading = $derived(homeQuery.isLoading);
 	const isUpdating = $derived(homeQuery.isRefetching);
+	const lastUpdated = $derived(homeQuery.dataUpdatedAt ? new Date(homeQuery.dataUpdatedAt) : null);
 
 	async function handleRefresh() {
 		homeQuery.refetch();
@@ -166,7 +165,7 @@
 	<PageHeader
 		subtitle="Discover music, explore your library, and find new favorites."
 		{loading}
-		{refreshing}
+		refreshing={isUpdating}
 		{isUpdating}
 		{lastUpdated}
 		onRefresh={handleRefresh}
