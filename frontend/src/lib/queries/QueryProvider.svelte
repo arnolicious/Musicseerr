@@ -3,6 +3,7 @@
 	import { queryClient } from './QueryClient';
 	import { QueryClientProvider } from '@tanstack/svelte-query';
 	import { SvelteQueryDevtools } from '@tanstack/svelte-query-devtools';
+	import { dev } from '$app/environment';
 
 	type Props = {
 		children: Snippet;
@@ -27,5 +28,7 @@
 
 <QueryClientProvider client={queryClient}>
 	{@render children()}
-	<SvelteQueryDevtools client={queryClient} />
+	{#if dev}
+		<SvelteQueryDevtools client={queryClient} />
+	{/if}
 </QueryClientProvider>

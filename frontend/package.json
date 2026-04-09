@@ -52,6 +52,7 @@
 		"@tanstack/svelte-query-devtools": "^6.1.13",
 		"@tanstack/svelte-query-persist-client": "^6.1.13",
 		"idb-keyval": "^6.2.2",
-		"lucide-svelte": "^0.575.0"
+		"lucide-svelte": "^0.575.0",
+		"runed": "^0.37.1"
 	}
 }
