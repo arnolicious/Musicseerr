@@ -17,7 +17,6 @@
 	import { requestAlbum } from '$lib/utils/albumRequest';
 	import { integrationStore } from '$lib/stores/integration';
 	import { type MusicSource } from '$lib/stores/musicSource';
-	import { artistBasicCache } from '$lib/utils/artistDetailCache';
 	import {
 		getArtistLastFmEnrichmentQuery,
 		getArtistReleasesInfiniteQuery,
@@ -181,7 +180,6 @@
 			removedArtistName = result.artist_name || artist.name;
 			showArtistRemovedModal = true;
 		}
-		artistBasicCache.set(artist, data.artistId);
 		queryClient.invalidateQueries({ queryKey: ArtistQueryKeyFactory.basic(data.artistId) });
 	}
 
