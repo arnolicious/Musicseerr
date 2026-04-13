@@ -21,6 +21,7 @@
 	import { PersistedState } from 'runed';
 	import { getDiscoverQuery } from '$lib/queries/discover/DiscoverQueries.svelte';
 	import SimpleSourceSwitcher from '$lib/components/SimpleSourceSwitcher.svelte';
+	import { createDiscoverRefreshMutation } from '$lib/queries/discover/DiscoverMutations.svelte';
 
 	const { data }: PageProps = $props();
 
@@ -32,6 +33,8 @@
 
 	const discoverQuery = getDiscoverQuery(() => activeSource.current);
 	const discoverData = $derived(discoverQuery.data);
+
+	const discoverRefreshMutation = createDiscoverRefreshMutation();
 
 	const loading = $derived(discoverQuery.isLoading);
 	let isUpdating = $derived(discoverQuery.isRefetching);
@@ -49,6 +52,10 @@
 	});
 	onDestroy(cleanup);
 	beforeNavigate(cleanup);
+
+	function handleRefresh() {
+		discoverRefreshMutation.mutate();
+	}
 
 	function handleSourceChange(source: MusicSource) {
 		activeSource.current = source;
@@ -116,7 +123,7 @@
 		{isUpdating}
 		{lastUpdated}
 		refreshLabel="Refresh"
-		onRefresh={() => discoverQuery.refetch()}
+		onRefresh={handleRefresh}
 	>
 		{#snippet title()}
 			<Compass class="inline h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 mr-2 align-text-bottom" />

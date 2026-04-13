@@ -1,5 +1,6 @@
 import type { MusicSource } from '$lib/stores/musicSource';
 
 export const DiscoverQueryKeyFactory = {
-	discover: (source: MusicSource) => ['discover', source] as const
+	prefix: ['discover'] as const,
+	discover: (source: MusicSource) => [...DiscoverQueryKeyFactory.prefix, source] as const
 };
