@@ -1,4 +1,4 @@
-export type Abortable = {
+type Abortable = {
 	readonly signal: AbortSignal;
 	abort: () => void;
 	reset: () => AbortSignal;

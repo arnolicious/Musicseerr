@@ -12,7 +12,6 @@
 	import { type MusicSource } from '$lib/stores/musicSource';
 	import CarouselSkeleton from '$lib/components/CarouselSkeleton.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
-	import { getGreeting } from '$lib/utils/homeCache';
 	import { removeQueueCachedData } from '$lib/utils/discoverQueueCache';
 	import { isDismissed } from '$lib/utils/dismissedPrompts';
 	import { getHomeQuery } from '$lib/queries/HomeQuery.svelte';
@@ -146,6 +145,13 @@
 
 	function handlePromptDismiss(_service: string) {
 		otherPrompts = getOtherPrompts();
+	}
+
+	export function getGreeting(): string {
+		const hour = new Date().getHours();
+		if (hour < 12) return 'Good morning';
+		if (hour < 18) return 'Good afternoon';
+		return 'Good evening';
 	}
 </script>
 

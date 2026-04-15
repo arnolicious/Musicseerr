@@ -6,7 +6,7 @@ import type { QueueItem } from '$lib/player/types';
 import type { MenuItem } from '$lib/components/ContextMenu.svelte';
 import { ListPlus, ListStart, ListMusic } from 'lucide-svelte';
 
-export const PAGE_SIZE = 48;
+const PAGE_SIZE = 48;
 
 export interface SidebarData<TAlbum> {
 	recentAlbums: TAlbum[];

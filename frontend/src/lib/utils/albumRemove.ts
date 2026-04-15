@@ -2,14 +2,14 @@ import { libraryStore } from '$lib/stores/library';
 import { API } from '$lib/constants';
 import { api } from '$lib/api/client';
 
-export interface AlbumRemoveResult {
+interface AlbumRemoveResult {
 	success: boolean;
 	artist_removed: boolean;
 	artist_name?: string | null;
 	error?: string;
 }
 
-export interface AlbumRemovePreviewResult {
+interface AlbumRemovePreviewResult {
 	success: boolean;
 	artist_will_be_removed: boolean;
 	artist_name?: string | null;

@@ -1,6 +1,6 @@
 import type { MusicSource } from './stores/musicSource';
 
-export const CACHE_KEY_GROUPS = {
+const CACHE_KEY_GROUPS = {
 	core: {
 		LIBRARY_MBIDS: 'musicseerr_library_mbids',
 		RECENTLY_ADDED: 'musicseerr_recently_added',
@@ -50,7 +50,7 @@ export const PAGE_SOURCE_KEYS = {
 	yourTop: 'musicseerr_source_your_top'
 } as const;
 
-export const CACHE_TTL_GROUPS = {
+const CACHE_TTL_GROUPS = {
 	core: {
 		DEFAULT: 5 * 60 * 1000,
 		LIBRARY: 5 * 60 * 1000,
@@ -112,14 +112,6 @@ export const BATCH_SIZES = {
 
 export const TOAST_DURATION = 2000;
 
-export const SCROLL_THRESHOLD = 10;
-
-export const CANVAS_SAMPLE_SIZE = 50;
-
-export const IMAGE_PIXEL_SAMPLE_STEP = 16;
-
-export const ALPHA_THRESHOLD = 128;
-
 export const PLACEHOLDER_COLORS = {
 	DARK: '#0d120a',
 	MEDIUM: '#161d12',
@@ -129,8 +121,6 @@ export const PLACEHOLDER_COLORS = {
 export const STATUS_COLORS = {
 	REQUESTED: '#F59E0B'
 } as const;
-
-export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const YOUTUBE_PLAYER_ELEMENT_ID = 'yt-player-embed';
 
@@ -294,21 +284,5 @@ export const API = {
 		search: (query: string) => `/api/v1/local/search?q=${encodeURIComponent(query)}`,
 		recent: () => '/api/v1/local/recent',
 		stats: () => '/api/v1/local/stats'
-	}
-} as const;
-
-export const MESSAGES = {
-	ERRORS: {
-		LOAD_ALBUM: 'Failed to load album',
-		LOAD_ARTIST: 'Failed to load artist',
-		LOAD_TRACKS: "Couldn't load the track list",
-		LOAD_RELEASES: 'Failed to load releases',
-		NETWORK: 'Network error occurred',
-		NOT_FOUND: 'Resource not found',
-		REQUEST_FAILED: 'Request failed'
-	},
-	SUCCESS: {
-		ADDED_TO_LIBRARY: 'Added to Library',
-		REQUESTED: 'Request submitted successfully'
 	}
 } as const;

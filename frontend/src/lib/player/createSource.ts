@@ -3,7 +3,7 @@ import { YouTubePlaybackSource } from './YouTubePlaybackSource';
 import { NativeAudioSource } from './NativeAudioSource';
 import { YOUTUBE_PLAYER_ELEMENT_ID } from '$lib/constants';
 
-export type NativeSourceOptions = {
+type NativeSourceOptions = {
 	url: string;
 	seekable: boolean;
 };

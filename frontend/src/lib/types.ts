@@ -36,7 +36,7 @@ export type Album = {
 	score?: number;
 };
 
-export type LibraryAlbum = {
+type LibraryAlbum = {
 	artist: string;
 	album: string;
 	year?: number | null;
@@ -48,7 +48,7 @@ export type LibraryAlbum = {
 	date_added?: number | null;
 };
 
-export type SearchResults = {
+type SearchResults = {
 	artists: Artist[];
 	albums: Album[];
 	top_artist?: Artist | null;
@@ -92,7 +92,7 @@ export type AlbumEnrichmentRequest = {
 	album_name: string;
 };
 
-export type EnrichmentBatchRequest = {
+type EnrichmentBatchRequest = {
 	artists: ArtistEnrichmentRequest[];
 	albums: AlbumEnrichmentRequest[];
 };
@@ -186,7 +186,7 @@ export type Track = {
 	recording_id?: string | null;
 };
 
-export type AlbumInfo = {
+type AlbumInfo = {
 	title: string;
 	musicbrainz_id: string;
 	artist_name: string;
@@ -259,7 +259,7 @@ export type ListenBrainzConnectionSettings = {
 	enabled: boolean;
 };
 
-export type HomeSettings = {
+type HomeSettings = {
 	cache_ttl_trending: number;
 	cache_ttl_personal: number;
 };
@@ -427,7 +427,7 @@ export type LidarrMetadataProfilePreferences = {
 	release_statuses: string[];
 };
 
-export type TrendingTimeRange = {
+type TrendingTimeRange = {
 	range_key: string;
 	label: string;
 	featured: HomeArtist | null;
@@ -435,14 +435,14 @@ export type TrendingTimeRange = {
 	total_count: number;
 };
 
-export type TrendingArtistsResponse = {
+type TrendingArtistsResponse = {
 	this_week: TrendingTimeRange;
 	this_month: TrendingTimeRange;
 	this_year: TrendingTimeRange;
 	all_time: TrendingTimeRange;
 };
 
-export type PopularTimeRange = {
+type PopularTimeRange = {
 	range_key: string;
 	label: string;
 	featured: HomeAlbum | null;
@@ -450,14 +450,14 @@ export type PopularTimeRange = {
 	total_count: number;
 };
 
-export type PopularAlbumsResponse = {
+type PopularAlbumsResponse = {
 	this_week: PopularTimeRange;
 	this_month: PopularTimeRange;
 	this_year: PopularTimeRange;
 	all_time: PopularTimeRange;
 };
 
-export type TrendingArtistsRangeResponse = {
+type TrendingArtistsRangeResponse = {
 	range_key: string;
 	label: string;
 	items: HomeArtist[];
@@ -466,7 +466,7 @@ export type TrendingArtistsRangeResponse = {
 	has_more: boolean;
 };
 
-export type PopularAlbumsRangeResponse = {
+type PopularAlbumsRangeResponse = {
 	range_key: string;
 	label: string;
 	items: HomeAlbum[];
@@ -626,7 +626,7 @@ export type DiscoverQueueResponse = {
 	queue_id: string;
 };
 
-export type QueueStatusResponse = {
+type QueueStatusResponse = {
 	status: 'idle' | 'building' | 'ready' | 'error';
 	source: string;
 	queue_id?: string;
@@ -636,7 +636,7 @@ export type QueueStatusResponse = {
 	error?: string;
 };
 
-export type QueueGenerateResponse = {
+type QueueGenerateResponse = {
 	action: 'started' | 'already_building' | 'already_ready';
 	status: string;
 	source: string;
@@ -669,7 +669,7 @@ export type YouTubeLinkResponse = {
 	quota: YouTubeQuotaStatus;
 };
 
-export type YouTubeLinkGenerateRequest = {
+type YouTubeLinkGenerateRequest = {
 	artist_name: string;
 	album_name: string;
 	album_id: string;
@@ -794,7 +794,7 @@ export type JellyfinPaginatedResponse = {
 	limit: number;
 };
 
-export type JellyfinSearchResponse = {
+type JellyfinSearchResponse = {
 	albums: JellyfinAlbumSummary[];
 	artists: JellyfinArtistSummary[];
 	tracks: JellyfinTrackInfo[];
@@ -806,7 +806,7 @@ export type JellyfinLibraryStats = {
 	total_artists: number;
 };
 
-export type JellyfinArtistSummary = {
+type JellyfinArtistSummary = {
 	jellyfin_id: string;
 	name: string;
 	image_url?: string | null;
@@ -942,7 +942,7 @@ export type LocalFilesConnectionSettings = {
 	lidarr_root_path: string;
 };
 
-export type LastFmConnectionSettings = {
+type LastFmConnectionSettings = {
 	api_key: string;
 	shared_secret: string;
 	session_key: string;
@@ -958,7 +958,7 @@ export type LastFmConnectionSettingsResponse = {
 	enabled: boolean;
 };
 
-export type LastFmVerifyResponse = {
+type LastFmVerifyResponse = {
 	valid: boolean;
 	message: string;
 };

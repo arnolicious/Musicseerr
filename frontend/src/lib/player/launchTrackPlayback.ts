@@ -3,7 +3,7 @@ import { buildQueueItemsFromYouTube, type TrackMeta } from '$lib/player/queueHel
 import type { YouTubeTrackLink } from '$lib/types';
 import { getCoverUrl } from '$lib/utils/errorHandling';
 
-export type TrackQueueOptions = {
+type TrackQueueOptions = {
 	albumId: string;
 	albumName: string;
 	artistName: string;

@@ -5,7 +5,7 @@ type NavigationProgressControllerOptions = {
 	now?: () => number;
 };
 
-export type NavigationProgressController = {
+type NavigationProgressController = {
 	start: () => void;
 	finish: () => void;
 	cleanup: () => void;

@@ -1,7 +1,6 @@
 import { browser } from '$app/environment';
 import { CACHE_TTL } from '$lib/constants';
 import { api } from '$lib/api/client';
-import { updateDiscoveryCacheTTL } from '$lib/stores/discoveryCache';
 import { updateDiscoverQueueCacheTTL } from '$lib/utils/discoverQueueCache';
 import { updateSearchCacheTTL } from '$lib/stores/search';
 import { updateJellyfinSidebarCacheTTL } from '$lib/utils/jellyfinLibraryCache';
@@ -9,7 +8,7 @@ import { updateLocalFilesSidebarCacheTTL } from '$lib/utils/localFilesCache';
 import { libraryStore } from '$lib/stores/library';
 import { recentlyAddedStore } from '$lib/stores/recentlyAdded';
 
-export interface CacheTTLs {
+interface CacheTTLs {
 	home: number;
 	discover: number;
 	library: number;
@@ -43,7 +42,6 @@ let initialized = false;
 function applyTTLs(ttls: CacheTTLs): void {
 	libraryStore.updateCacheTTL(ttls.library);
 	recentlyAddedStore.updateCacheTTL(ttls.recentlyAdded);
-	updateDiscoveryCacheTTL(ttls.discover);
 	updateDiscoverQueueCacheTTL(ttls.discoverQueue);
 	updateSearchCacheTTL(ttls.search);
 	updateLocalFilesSidebarCacheTTL(ttls.localFilesSidebar);

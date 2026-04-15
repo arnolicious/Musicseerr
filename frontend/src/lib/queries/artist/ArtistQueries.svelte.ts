@@ -1,4 +1,4 @@
-import { API, CACHE_TTL } from '$lib/constants';
+import { API, BATCH_SIZES, CACHE_TTL } from '$lib/constants';
 import { createInfiniteQuery, createQuery, queryOptions } from '@tanstack/svelte-query';
 import type { Getter } from 'runed';
 import { ArtistQueryKeyFactory } from './ArtistQueryKeyFactory';
@@ -102,15 +102,13 @@ export const getArtistLastFmEnrichmentQuery = (
 		};
 	});
 
-const BATCH_SIZE = 50;
-
 export const getArtistReleasesInfiniteQuery = (getArtistId: Getter<string>) =>
 	createInfiniteQuery(() => ({
 		queryKey: ArtistQueryKeyFactory.releases(getArtistId()),
 		initialPageParam: 0,
 		queryFn: async ({ pageParam = 0, signal }) => {
 			const response = await api.global.get<ArtistReleases>(
-				API.artist.releases(getArtistId(), pageParam, BATCH_SIZE),
+				API.artist.releases(getArtistId(), pageParam, BATCH_SIZES.RELEASES),
 				{ signal }
 			);
 			return response;
@@ -121,7 +119,7 @@ export const getArtistReleasesInfiniteQuery = (getArtistId: Getter<string>) =>
 			if (!lastPage.has_more || wasLastPageEmpty) {
 				return undefined;
 			}
-			return allPages.length * BATCH_SIZE;
+			return allPages.length * BATCH_SIZES.RELEASES;
 		}
 	}));
 

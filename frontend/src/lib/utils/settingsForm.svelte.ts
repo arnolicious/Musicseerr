@@ -2,7 +2,7 @@ import { api, ApiError } from '$lib/api/client';
 import { isAbortError } from '$lib/utils/errorHandling';
 import { integrationStore } from '$lib/stores/integration';
 
-export interface SettingsFormConfig<T> {
+interface SettingsFormConfig<T> {
 	loadEndpoint: string;
 	saveEndpoint: string;
 	testEndpoint?: string;

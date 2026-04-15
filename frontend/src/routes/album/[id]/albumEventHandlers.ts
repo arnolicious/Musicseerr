@@ -4,7 +4,7 @@ import type { AlbumBasicInfo, YouTubeTrackLink, YouTubeLink, YouTubeQuotaStatus 
 import { compareDiscTrack, getDiscTrackKey } from '$lib/player/queueHelpers';
 import { requestAlbum } from '$lib/utils/albumRequest';
 
-export interface EventHandlerDeps {
+interface EventHandlerDeps {
 	getAlbum: () => AlbumBasicInfo | null;
 	setAlbum: (a: AlbumBasicInfo | null) => void;
 	getAlbumId: () => string;

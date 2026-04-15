@@ -26,7 +26,7 @@ export function restoreSessionData(): StoredSession | null {
 	return getStoredSession();
 }
 
-export interface ResumeState {
+interface ResumeState {
 	nowPlaying: NowPlaying;
 	queue: QueueItem[];
 	currentIndex: number;

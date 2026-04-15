@@ -3,7 +3,7 @@ import { playerStore } from '$lib/stores/player.svelte';
 import { createPlaybackSource } from '$lib/player/createSource';
 import { getCoverUrl } from '$lib/utils/errorHandling';
 
-export type YouTubePlaybackPayload = {
+type YouTubePlaybackPayload = {
 	albumId: string;
 	albumName: string;
 	artistName: string;

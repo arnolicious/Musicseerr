@@ -122,5 +122,3 @@ function createRecentlyAddedStore() {
 }
 
 export const recentlyAddedStore = createRecentlyAddedStore();
-
-export type { LibraryArtist, LibraryAlbum, RecentlyAddedData, RecentlyAddedState };

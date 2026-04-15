@@ -3,12 +3,12 @@ import { libraryStore } from '$lib/stores/library';
 import { notifyRequestCountChanged } from '$lib/utils/requestsApi';
 import { api, ApiError } from '$lib/api/client';
 
-export type AlbumRequestResult = {
+type AlbumRequestResult = {
 	success: boolean;
 	error?: string;
 };
 
-export type AlbumRequestContext = {
+type AlbumRequestContext = {
 	artist?: string;
 	album?: string;
 	year?: number | null;

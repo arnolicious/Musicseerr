@@ -1,7 +1,7 @@
 import type { ActiveRequestsResponse, RequestHistoryResponse } from '$lib/types';
 import { api } from '$lib/api/client';
 import { requestCountStore } from '$lib/stores/requestCountStore.svelte';
-export type { ActiveRequestsResponse, RequestHistoryResponse } from '$lib/types';
+;
 
 export function notifyRequestCountChanged(count?: number): void {
 	requestCountStore.notify(count);
@@ -46,11 +46,4 @@ export async function retryRequest(
 
 export async function clearHistoryItem(musicbrainzId: string): Promise<{ success: boolean }> {
 	return api.global.delete<{ success: boolean }>(`/api/v1/requests/history/${musicbrainzId}`);
-}
-
-export async function fetchActiveRequestCount(signal?: AbortSignal): Promise<number> {
-	const data = await api.global.get<{ count?: number }>('/api/v1/requests/active/count', {
-		signal
-	});
-	return data.count ?? 0;
 }

@@ -1,6 +1,6 @@
 import type { HomeAlbum, HomeArtist } from '$lib/types';
 
-export type TimeRangeItemType = 'album' | 'artist';
+type TimeRangeItemType = 'album' | 'artist';
 
 export function getTimeRangeFallbackPath(
 	itemType: TimeRangeItemType,

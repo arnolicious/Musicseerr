@@ -16,9 +16,9 @@ import { createIDBStorage } from './IndexedDbPersister.svelte';
  * Maximum age for queries to be persisted.
  * @see https://tanstack.com/query/latest/docs/framework/react/plugins/persistQueryClient#how-it-works
  */
-export const QUERY_MAX_AGE = 1000 * 60 * 60 * 24 * 7; // 7 days
+const QUERY_MAX_AGE = 1000 * 60 * 60 * 24 * 7; // 7 days
 
-export const queryPersister = experimental_createQueryPersister({
+const queryPersister = experimental_createQueryPersister({
 	storage: createIDBStorage(),
 	maxAge: QUERY_MAX_AGE,
 	// No need to serialize/deserialize since we're using IndexedDB which can store complex objects.
@@ -26,6 +26,9 @@ export const queryPersister = experimental_createQueryPersister({
 	deserialize: (cached) => cached
 });
 
+/**
+ * @public
+ */
 export const setQueriesDataWithPersister = async <TQueryFnData>(
 	filters: QueryFilters,
 	updater: Updater<NoInfer<TQueryFnData> | undefined, NoInfer<TQueryFnData> | undefined>
@@ -36,6 +39,10 @@ export const setQueriesDataWithPersister = async <TQueryFnData>(
 		await queryPersister.persistQueryByKey(modifiedQuery[0], queryClient);
 	}
 };
+
+/**
+ * @public
+ */
 export const setQueryDataWithPersister = async <
 	TQueryFnData = unknown,
 	TTaggedQueryKey extends QueryKey = QueryKey,
@@ -57,6 +64,9 @@ export const setQueryDataWithPersister = async <
 	await queryPersister.persistQueryByKey(queryKey, queryClient);
 };
 
+/**
+ * @public
+ */
 export const invalidateQueriesWithPersister = async <TTaggedQueryKey extends QueryKey = QueryKey>(
 	filters?: InvalidateQueryFilters<TTaggedQueryKey>,
 	options?: InvalidateOptions

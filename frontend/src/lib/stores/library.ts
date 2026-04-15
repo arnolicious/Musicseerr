@@ -3,7 +3,7 @@ import { CACHE_KEYS, CACHE_TTL } from '$lib/constants';
 import { createLocalStorageCache } from '$lib/utils/localStorageCache';
 import { api } from '$lib/api/client';
 
-export interface LibraryState {
+interface LibraryState {
 	mbidSet: Set<string>;
 	requestedSet: Set<string>;
 	loading: boolean;

@@ -36,7 +36,7 @@ export interface PlaylistDetail extends PlaylistSummary {
 	tracks: PlaylistTrack[];
 }
 
-export interface TrackData {
+interface TrackData {
 	track_name: string;
 	artist_name: string;
 	album_name: string;
