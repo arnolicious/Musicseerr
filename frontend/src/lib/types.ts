@@ -271,6 +271,8 @@ export type ListenBrainzConnectionSettings = {
 export type HomeSettings = {
 	cache_ttl_trending: number;
 	cache_ttl_personal: number;
+	show_whats_hot: boolean;
+	show_globally_trending: boolean;
 };
 
 export type HomeArtist = {

@@ -21,6 +21,8 @@
 		registerPlaylistModal,
 		unregisterPlaylistModal
 	} from '$lib/components/AddToPlaylistModal.svelte';
+	import DiscographyDownloadModal from '$lib/components/DiscographyDownloadModal.svelte';
+	import BatchDownloadIndicator from '$lib/components/BatchDownloadIndicator.svelte';
 	import { syncStatus } from '$lib/stores/syncStatus.svelte';
 	import YouTubeIcon from '$lib/components/YouTubeIcon.svelte';
 	import NavidromeIcon from '$lib/components/NavidromeIcon.svelte';
@@ -663,6 +665,8 @@
 
 		<Player />
 		<CacheSyncIndicator />
+		<BatchDownloadIndicator />
+		<DiscographyDownloadModal />
 		<AddToPlaylistModal bind:this={playlistModalRef} />
 	</div>
 </QueryProvider>

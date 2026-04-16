@@ -25,6 +25,7 @@ from core.exceptions import ExternalServiceError
 from infrastructure.cache.cache_keys import (
     ARTIST_INFO_PREFIX,
     ALBUM_INFO_PREFIX,
+    LIDARR_ARTIST_ALBUMS_PREFIX,
     JELLYFIN_PREFIX,
     LOCAL_FILES_PREFIX,
     SOURCE_RESOLUTION_PREFIX,
@@ -242,6 +243,7 @@ class SettingsService:
         total = 0
         total += await self._cache.clear_prefix(ARTIST_INFO_PREFIX)
         total += await self._cache.clear_prefix(ALBUM_INFO_PREFIX)
+        total += await self._cache.clear_prefix(LIDARR_ARTIST_ALBUMS_PREFIX)
         for prefix in musicbrainz_prefixes():
             total += await self._cache.clear_prefix(prefix)
         logger.info(f"Cleared {total} cache entries for preference change")
@@ -525,6 +527,7 @@ class SettingsService:
             )
 
         logger.info(f"Updated Lidarr metadata profile '{result.get('name')}' (ID: {resolved_id})")
+        await self._cache.clear_prefix(LIDARR_ARTIST_ALBUMS_PREFIX)
         return self._lidarr_profile_to_preferences(result)
 
     async def verify_navidrome(

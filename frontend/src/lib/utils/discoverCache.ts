@@ -11,3 +11,4 @@ export const getDiscoverCachedData = discoverCache.get;
 export const setDiscoverCachedData = discoverCache.set;
 export const isDiscoverCacheStale = discoverCache.isStale;
 export const updateDiscoverCacheTTL = discoverCache.updateTTL;
+export const removeDiscoverCachedData = discoverCache.remove;

@@ -5,6 +5,7 @@ from api.v1.schemas.settings import (
     ListenBrainzConnectionSettings,
     LastFmConnectionSettings,
     PrimaryMusicSourceSettings,
+    HomeSettings,
 )
 from api.v1.schemas.search import SearchResult
 from repositories.listenbrainz_models import (
@@ -656,3 +657,52 @@ class TestDiscoverPerformanceHotpaths:
         assert section is not None
         assert {item.mbid for item in section.items} == {"artist-rock", "artist-shoe"}
         assert section.source == "lastfm"
+
+
+class TestShowGloballyTrendingSetting:
+    @pytest.mark.asyncio
+    async def test_lb_trending_skipped_when_disabled(self):
+        service, lb_repo, lfm_repo, prefs = _make_service(
+            lb_enabled=True, lfm_enabled=True, primary_source="listenbrainz"
+        )
+        prefs.get_home_settings.return_value = HomeSettings(show_globally_trending=False)
+
+        response = await service.build_discover_data(source="listenbrainz")
+
+        lb_repo.get_sitewide_top_artists.assert_not_awaited()
+        assert response.globally_trending is None
+
+    @pytest.mark.asyncio
+    async def test_lfm_trending_skipped_when_disabled(self):
+        service, lb_repo, lfm_repo, prefs = _make_service(
+            lb_enabled=True, lfm_enabled=True, primary_source="lastfm"
+        )
+        prefs.get_home_settings.return_value = HomeSettings(show_globally_trending=False)
+
+        response = await service.build_discover_data(source="lastfm")
+
+        lfm_repo.get_global_top_artists.assert_not_awaited()
+        assert response.globally_trending is None
+
+    @pytest.mark.asyncio
+    async def test_trending_dispatched_when_enabled(self):
+        service, lb_repo, _, prefs = _make_service(
+            lb_enabled=True, lfm_enabled=True, primary_source="listenbrainz"
+        )
+        prefs.get_home_settings.return_value = HomeSettings(show_globally_trending=True)
+
+        await service.build_discover_data(source="listenbrainz")
+
+        lb_repo.get_sitewide_top_artists.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_other_sections_unaffected_when_disabled(self):
+        service, _, lfm_repo, prefs = _make_service(
+            lb_enabled=True, lfm_enabled=True, primary_source="listenbrainz"
+        )
+        prefs.get_home_settings.return_value = HomeSettings(show_globally_trending=False)
+
+        response = await service.build_discover_data(source="listenbrainz")
+
+        assert response.globally_trending is None
+        assert response.service_prompts is not None

@@ -169,6 +169,8 @@ class YouTubeConnectionSettings(AppStruct):
 class HomeSettings(AppStruct):
     cache_ttl_trending: int = 3600
     cache_ttl_personal: int = 300
+    show_whats_hot: bool = True
+    show_globally_trending: bool = True
 
     def __post_init__(self) -> None:
         if self.cache_ttl_trending < 300 or self.cache_ttl_trending > 86400:

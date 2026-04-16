@@ -75,7 +75,11 @@ class DiscoverHomepageService:
             cached = await self._memory_cache.get(cache_key)
             if cached is not None:
                 if isinstance(cached, DiscoverResponse):
-                    return clone_with_updates(cached, {"refreshing": self._building})
+                    updates = {"refreshing": self._building}
+                    home_settings = self._integration.get_home_settings()
+                    if not home_settings.show_globally_trending:
+                        updates["globally_trending"] = None
+                    return clone_with_updates(cached, updates)
         if not self._building:
             from core.task_registry import TaskRegistry
             registry = TaskRegistry.get_instance()
@@ -158,6 +162,7 @@ class DiscoverHomepageService:
 
     async def build_discover_data(self, source: str | None = None) -> DiscoverResponse:
         resolved_source = self._integration.resolve_source(source)
+        home_settings = self._integration.get_home_settings()
         lb_enabled = self._integration.is_listenbrainz_enabled()
         jf_enabled = self._integration.is_jellyfin_enabled()
         lidarr_configured = self._integration.is_lidarr_configured()
@@ -193,10 +198,11 @@ class DiscoverHomepageService:
                 else:
                     tasks[f"similar_{i}"] = self._lb_repo.get_similar_artists(mbid, max_similar=20)
 
-        if resolved_source == "listenbrainz":
-            tasks["lb_trending"] = self._lb_repo.get_sitewide_top_artists(count=20)
-        elif resolved_source == "lastfm" and self._lfm_repo and lfm_enabled:
-            tasks["lfm_global_top"] = self._lfm_repo.get_global_top_artists(limit=20)
+        if home_settings.show_globally_trending:
+            if resolved_source == "listenbrainz":
+                tasks["lb_trending"] = self._lb_repo.get_sitewide_top_artists(count=20)
+            elif resolved_source == "lastfm" and self._lfm_repo and lfm_enabled:
+                tasks["lfm_global_top"] = self._lfm_repo.get_global_top_artists(limit=20)
 
         if self._lfm_repo and lfm_enabled and lfm_username:
             tasks["lfm_weekly_artists"] = self._lfm_repo.get_user_weekly_artist_chart(
@@ -296,14 +302,15 @@ class DiscoverHomepageService:
                     response.genre_artists
                 )
 
-        if resolved_source == "lastfm":
-            response.globally_trending = self._build_lastfm_globally_trending(
-                results, library_mbids, seen_artist_mbids
-            )
-        else:
-            response.globally_trending = self._build_globally_trending(
-                results, library_mbids, seen_artist_mbids
-            )
+        if home_settings.show_globally_trending:
+            if resolved_source == "lastfm":
+                response.globally_trending = self._build_lastfm_globally_trending(
+                    results, library_mbids, seen_artist_mbids
+                )
+            else:
+                response.globally_trending = self._build_globally_trending(
+                    results, library_mbids, seen_artist_mbids
+                )
 
         response.lastfm_weekly_artist_chart = self._build_lastfm_weekly_artist_chart(
             results, library_mbids, seen_artist_mbids

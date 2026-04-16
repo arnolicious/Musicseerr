@@ -16,6 +16,7 @@
 	import ArtistPageToc from '$lib/components/ArtistPageToc.svelte';
 	import { requestAlbum } from '$lib/utils/albumRequest';
 	import { integrationStore } from '$lib/stores/integration';
+	import { libraryStore } from '$lib/stores/library';
 	import { type MusicSource } from '$lib/stores/musicSource';
 	import {
 		getArtistLastFmEnrichmentQuery,
@@ -33,6 +34,12 @@
 	import { PAGE_SOURCE_KEYS } from '$lib/constants';
 	import { PersistedState } from 'runed';
 	import SimpleSourceSwitcher from '$lib/components/SimpleSourceSwitcher.svelte';
+	import ArtistPlaybackBar from '$lib/components/ArtistPlaybackBar.svelte';
+	import {
+		discographyDownloadStore,
+		type DiscographyRelease
+	} from '$lib/stores/discographyDownload.svelte';
+	import { Download } from 'lucide-svelte';
 
 	let { data }: PageProps = $props();
 
@@ -191,6 +198,43 @@
 		invalidateQueriesWithPersister({ queryKey: ArtistQueryKeyFactory.basic(data.artistId) });
 	}
 
+	let allReleases = $derived([...releases.albums, ...releases.eps, ...releases.singles]);
+	let downloadableReleaseCount = $derived(
+		allReleases.filter(
+			(r) =>
+				!r.in_library &&
+				!libraryStore.isInLibrary(r.id) &&
+				!r.requested &&
+				!libraryStore.isRequested(r.id)
+		).length
+	);
+
+	function openDiscographyModal(releasesToShow?: typeof allReleases) {
+		if (!artist) return;
+		const items: DiscographyRelease[] = (releasesToShow ?? allReleases).map((r) => ({
+			id: r.id,
+			title: r.title,
+			type: r.type ?? 'Album',
+			year: r.year,
+			in_library: r.in_library || libraryStore.isInLibrary(r.id),
+			requested: r.requested || libraryStore.isRequested(r.id)
+		}));
+		discographyDownloadStore.show(artist.name, data.artistId, items);
+	}
+
+	function openSectionDownloadModal(sectionReleases: typeof allReleases, type: string) {
+		if (!artist) return;
+		const items: DiscographyRelease[] = sectionReleases.map((r) => ({
+			id: r.id,
+			title: r.title,
+			type,
+			year: r.year,
+			in_library: r.in_library || libraryStore.isInLibrary(r.id),
+			requested: r.requested || libraryStore.isRequested(r.id)
+		}));
+		discographyDownloadStore.show(artist.name, data.artistId, items);
+	}
+
 	const tocSections = $derived.by<ArtistTocSection[]>(() => {
 		if (!artist) {
 			return [];
@@ -283,6 +327,22 @@
 					{/if}
 				</section>
 
+				<ArtistPlaybackBar
+					artistName={artist.name}
+					artistId={data.artistId}
+					releases={[...releases.albums, ...releases.eps, ...releases.singles]}
+				/>
+
+				{#if downloadableReleaseCount > 0}
+					<div class="flex justify-center sm:justify-start">
+						<button class="btn btn-accent btn-sm gap-1.5" onclick={() => openDiscographyModal()}>
+							<Download class="h-4 w-4" />
+							Download Discography
+							<span class="badge badge-sm ml-0.5">{downloadableReleaseCount}</span>
+						</button>
+					</div>
+				{/if}
+
 				<LibraryAlbumsCarousel
 					releases={[...releases.albums, ...releases.eps, ...releases.singles]}
 					artistName={artist.name}
@@ -362,6 +422,7 @@
 							onRequest={handleRequest}
 							onRemoved={handleReleaseRemoved}
 							onToggleCollapse={() => (albumsCollapsed = !albumsCollapsed)}
+							onDownloadAll={() => openSectionDownloadModal(releases.albums, 'Album')}
 						/>
 					</section>
 				{/if}
@@ -378,6 +439,7 @@
 							onRequest={handleRequest}
 							onRemoved={handleReleaseRemoved}
 							onToggleCollapse={() => (epsCollapsed = !epsCollapsed)}
+							onDownloadAll={() => openSectionDownloadModal(releases.eps, 'EP')}
 						/>
 					</section>
 				{/if}
@@ -394,6 +456,7 @@
 							onRequest={handleRequest}
 							onRemoved={handleReleaseRemoved}
 							onToggleCollapse={() => (singlesCollapsed = !singlesCollapsed)}
+							onDownloadAll={() => openSectionDownloadModal(releases.singles, 'Single')}
 						/>
 					</section>
 				{/if}

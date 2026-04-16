@@ -60,7 +60,8 @@ export const CACHE_TTL_GROUPS = {
 		HOME: 5 * 60 * 1000,
 		DISCOVER: 30 * 60 * 1000,
 		DISCOVER_QUEUE: 24 * 60 * 60 * 1000,
-		SEARCH: 5 * 60 * 1000
+		SEARCH: 5 * 60 * 1000,
+		LYRICS: 60 * 60 * 1000
 	},
 	library: {
 		LOCAL_FILES_SIDEBAR: 2 * 60 * 1000,

@@ -4,6 +4,7 @@ from api.v1.schemas.discover import (
     DiscoverIntegrationStatus,
     QueueSettings,
 )
+from api.v1.schemas.settings import HomeSettings
 from services.preferences_service import PreferencesService
 
 logger = logging.getLogger(__name__)
@@ -71,6 +72,9 @@ class IntegrationHelpers:
     def get_discover_cache_key(self, source: str | None = None) -> str:
         resolved = self.resolve_source(source)
         return f"{DISCOVER_CACHE_KEY}:{resolved}"
+
+    def get_home_settings(self) -> HomeSettings:
+        return self._preferences.get_home_settings()
 
     def get_integration_status(self) -> DiscoverIntegrationStatus:
         return DiscoverIntegrationStatus(
