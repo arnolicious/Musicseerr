@@ -6,42 +6,51 @@ import { createQuery } from '@tanstack/svelte-query';
 import { DiscoverQueryKeyFactory } from './DiscoverQueryKeyFactory';
 import type { Getter } from 'runed';
 
-const MAX_RETRY_TIME = 5 * 60 * 1000; // 5 minutes
+const RETRY_INTERVAL = 3_000; // 3 seconds
+const RETRY_COUNT = 80; // 80 retries at 3 seconds each equals 4 minutes
+// const RETRY_COUNT_TEST = 3;
+
+class EmptyDataError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'EmptyDataError';
+	}
+}
 
 export const getDiscoverQuery = (getSource: Getter<MusicSource>) => {
-	let shouldRefetchStart = $state<false | Date>(false);
-
-	const query = createQuery(() => ({
+	return createQuery(() => ({
 		staleTime: CACHE_TTL.DISCOVER,
 		queryKey: DiscoverQueryKeyFactory.discover(getSource()),
-		refetchInterval: () => {
-			const now = Date.now();
-			if (shouldRefetchStart && now - (shouldRefetchStart as Date).getTime() < MAX_RETRY_TIME) {
-				return 3_000; // Refetch every 3 seconds if data is empty
+		retry: (failureCount, error) => {
+			// Retry if the error is due to empty data
+			if (error instanceof EmptyDataError && failureCount < RETRY_COUNT) {
+				console.debug(
+					`Discover query attempt ${failureCount}: ${error.message}. Retrying in ${RETRY_INTERVAL / 1000} seconds...`
+				);
+				return true; // Retry the query
 			}
-			return undefined;
+			return false; // Do not retry for other types of errors
 		},
-		queryFn: ({ signal }) =>
-			api.global.get<DiscoverResponse>(API.discover(getSource()), {
+
+		queryFn: async ({ signal }) => {
+			const result = await api.global.get<DiscoverResponse>(API.discover(getSource()), {
 				signal
-			})
-	}));
+			});
 
-	const dataHasContent = $derived(
-		(query.data?.because_you_listen_to?.length ?? 0) > 0 ||
-			query.data?.fresh_releases != null ||
-			query.data?.missing_essentials != null ||
-			query.data?.globally_trending != null
-	);
+			const dataHasContent =
+				(result?.because_you_listen_to?.length ?? 0) > 0 ||
+				result?.fresh_releases != null ||
+				result?.missing_essentials != null ||
+				result?.globally_trending != null;
+			console.debug('Discover query data has content:', dataHasContent, result);
+			if (!dataHasContent) {
+				// Throw error to trigger retry mechanism in case of empty data
+				throw new EmptyDataError('Discover query returned empty data');
+			}
 
-	$effect(() => {
-		if (!query.isLoading && !query.isFetching && !dataHasContent) {
-			// eslint-disable-next-line svelte/prefer-svelte-reactivity
-			shouldRefetchStart = new Date();
-		} else {
-			shouldRefetchStart = false;
+			return result;
 		}
-	});
-
-	return query;
+	}));
 };
+
+export type DiscoverQuery = ReturnType<typeof getDiscoverQuery>;
