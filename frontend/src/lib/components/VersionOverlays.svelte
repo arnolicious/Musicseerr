@@ -22,21 +22,32 @@
 		return m ? m[1] : null;
 	}
 
-	// Collect all releases sharing the same minor version (e.g. v1.3.0, v1.3.1, …)
+	// Collect releases sharing the same minor version, up to and including the current version
 	const minorReleases = $derived.by(() => {
 		const releases = releaseHistoryQuery.data;
 		if (!releases || releases.length === 0) return [];
 
-		const versionToMatch = isDev ? releases[0].tag_name : currentVersion;
-		if (!versionToMatch) return [];
+		if (isDev) {
+			const prefix = getMinorPrefix(releases[0].tag_name);
+			if (!prefix) return [releases[0]];
+			return releases.filter((r) => !r.prerelease && getMinorPrefix(r.tag_name) === prefix);
+		}
 
-		const prefix = getMinorPrefix(versionToMatch);
+		if (!currentVersion) return [];
+
+		const prefix = getMinorPrefix(currentVersion);
 		if (!prefix) {
-			const exact = releases.find((r) => r.tag_name === versionToMatch);
+			const exact = releases.find((r) => r.tag_name === currentVersion);
 			return exact ? [exact] : [];
 		}
 
-		return releases.filter((r) => getMinorPrefix(r.tag_name) === prefix);
+		// Same minor, then slice from the current version downward (releases are newest-first)
+		const sameMinor = releases.filter(
+			(r) => !r.prerelease && getMinorPrefix(r.tag_name) === prefix
+		);
+		const currentIdx = sameMinor.findIndex((r) => r.tag_name === currentVersion);
+		if (currentIdx === -1) return sameMinor;
+		return sameMinor.slice(currentIdx);
 	});
 
 	$effect(() => {

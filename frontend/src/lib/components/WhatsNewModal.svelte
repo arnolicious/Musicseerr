@@ -31,6 +31,7 @@
 	);
 
 	$effect(() => {
+		let aborted = false;
 		const withContent = releases.filter((r) => r.body && r.body.trim());
 		if (withContent.length === 0) {
 			renderedSections = [];
@@ -45,11 +46,15 @@
 			}))
 		)
 			.then((sections) => {
-				renderedSections = sections;
+				if (!aborted) renderedSections = sections;
 			})
 			.catch(() => {
-				renderedSections = [];
+				if (!aborted) renderedSections = [];
 			});
+
+		return () => {
+			aborted = true;
+		};
 	});
 
 	$effect(() => {
@@ -66,7 +71,7 @@
 	}
 
 	function onDialogClose() {
-		if (dismissKey) {
+		if (dismissKey && !isWhatsNewDismissed(dismissKey)) {
 			dismissWhatsNew(dismissKey);
 		}
 	}
