@@ -3,6 +3,7 @@
 	import { browser } from '$app/environment';
 	import { goto, beforeNavigate, afterNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { migratePageSourceKeys } from '$lib/stores/musicSource';
 	import { errorModal } from '$lib/stores/errorModal';
 	import { libraryStore } from '$lib/stores/library';
 	import { integrationStore } from '$lib/stores/integration';
@@ -60,6 +61,8 @@
 	} from 'lucide-svelte';
 	import type { Snippet } from 'svelte';
 	import QueryProvider from '$lib/queries/QueryProvider.svelte';
+
+	migratePageSourceKeys();
 
 	let { children }: { children: Snippet } = $props();
 

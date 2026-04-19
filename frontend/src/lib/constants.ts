@@ -182,7 +182,8 @@ export const API = {
 		suggest: (query: string, limit = 5) =>
 			`/api/v1/search/suggest?q=${encodeURIComponent(query.trim())}&limit=${limit}`
 	},
-	home: (source: string) => `/api/v1/home?source=${encodeURIComponent(source)}`,
+	home: (source?: string) =>
+		source ? `/api/v1/home?source=${encodeURIComponent(source)}` : '/api/v1/home',
 	homeIntegrationStatus: () => '/api/v1/home/integration-status',
 	discover: (source?: string) =>
 		source ? `/api/v1/discover?source=${encodeURIComponent(source)}` : '/api/v1/discover',

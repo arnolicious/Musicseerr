@@ -17,7 +17,7 @@
 	import { requestAlbum } from '$lib/utils/albumRequest';
 	import { integrationStore } from '$lib/stores/integration';
 	import { libraryStore } from '$lib/stores/library';
-	import { type MusicSource } from '$lib/stores/musicSource';
+	import { type MusicSource, isMusicSource } from '$lib/stores/musicSource';
 	import {
 		getArtistLastFmEnrichmentQuery,
 		getArtistReleasesInfiniteQuery,
@@ -49,6 +49,10 @@
 		data.primarySource
 	);
 
+	let validSource = $derived(
+		isMusicSource(activeSource.current) ? activeSource.current : data.primarySource
+	);
+
 	let showToast = $state(false);
 	let toastMessage = 'Added to Library';
 	let showArtistRemovedModal = $state(false);
@@ -73,21 +77,21 @@
 
 	const similarArtistsQuery = getSimilarArtistsQuery(() => ({
 		artistId: data.artistId,
-		source: activeSource.current
+		source: validSource
 	}));
 	const similarArtists = $derived(similarArtistsQuery.data);
 	const loadingSimilar = $derived(similarArtistsQuery.isLoading);
 
 	const topSongsQuery = getArtistTopSongsQuery(() => ({
 		artistId: data.artistId,
-		source: activeSource.current
+		source: validSource
 	}));
 	const topSongs = $derived(topSongsQuery.data);
 	const loadingTopSongs = $derived(topSongsQuery.isLoading);
 
 	const topAlbumsQuery = getArtistTopAlbumsQuery(() => ({
 		artistId: data.artistId,
-		source: activeSource.current
+		source: validSource
 	}));
 	const topAlbums = $derived(topAlbumsQuery.data);
 	const loadingTopAlbums = $derived(topAlbumsQuery.isLoading);
@@ -351,7 +355,7 @@
 
 				<div class="flex items-center justify-end mt-8 mb-4">
 					<SimpleSourceSwitcher
-						currentSource={activeSource.current}
+						currentSource={validSource}
 						onSourceChange={(newSource) => {
 							activeSource.current = newSource;
 						}}
